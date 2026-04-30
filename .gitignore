@@ -1,3 +1,5 @@
 oracle_sim.db
 __pycache__/
 *.pyc
+healthcare/backend/*.db
+healthcare/backend/*.db-journal

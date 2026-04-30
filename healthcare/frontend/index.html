@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Ready Data — Healthcare Pipeline POC</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg:     #060d1a;
+    --bg2:    #0c1628;
+    --bg3:    #122035;
+    --border: #1e3a5f;
+    --blue:   #0ea5e9;
+    --blue2:  #0284c7;
+    --teal:   #06b6d4;
+    --green:  #22c55e;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red:    #ef4444;
+    --purple: #a855f7;
+    --hipaa:  #6366f1;
+    --phi-red:#dc2626;
+    --text:   #e2e8f0;
+    --muted:  #64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',monospace;font-size:12px;overflow-x:hidden;}
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg2);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+
+  /* Header */
+  .header{display:flex;align-items:center;justify-content:space-between;padding:12px 22px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{font-size:22px;}
+  .logo-text{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--blue);}
+  .logo-sub{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+  .header-scores{display:flex;gap:16px;align-items:center;}
+  .score-chip{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:20px;font-size:11px;font-weight:700;}
+  .chip-ai{background:rgba(14,165,233,.12);border:1px solid var(--blue);color:var(--blue);}
+  .chip-hipaa{background:rgba(99,102,241,.12);border:1px solid var(--hipaa);color:var(--hipaa);}
+  .chip-label{font-size:9px;font-weight:400;color:var(--muted);letter-spacing:1px;}
+  .status-badge{padding:5px 12px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:6px;}
+  .status-idle{background:rgba(100,116,139,.12);border:1px solid var(--muted);color:var(--muted);}
+  .status-running{background:rgba(14,165,233,.12);border:1px solid var(--blue);color:var(--blue);}
+  .status-complete{background:rgba(34,197,94,.12);border:1px solid var(--green);color:var(--green);}
+  .pulse{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+
+  /* Layout */
+  .layout{display:grid;grid-template-columns:252px 1fr 276px;height:calc(100vh - 51px);}
+  .panel{border-right:1px solid var(--border);overflow-y:auto;}
+  .panel-hdr{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+
+  /* Stage sidebar */
+  .stage-item{padding:9px 14px;border-bottom:1px solid rgba(30,58,95,.5);display:flex;align-items:center;gap:9px;transition:background .2s;}
+  .stage-item.active{background:rgba(14,165,233,.07);border-left:3px solid var(--blue);}
+  .stage-item.complete{border-left:3px solid var(--green);}
+  .stage-item.pending{border-left:3px solid transparent;}
+  .sn{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+  .sn-p{background:var(--bg3);color:var(--muted);border:1px solid var(--border);}
+  .sn-a{background:var(--blue);color:#000;animation:pulse 1.2s infinite;}
+  .sn-c{background:var(--green);color:#000;}
+  .stage-name{font-size:11px;font-weight:600;}
+  .stage-desc{font-size:9px;color:var(--muted);margin-top:1px;}
+  .prog-bar{width:100%;height:3px;background:var(--bg3);border-radius:2px;margin-top:5px;overflow:hidden;}
+  .prog-fill{height:100%;border-radius:2px;transition:width .4s ease;}
+  .pf-a{background:var(--blue);}
+  .pf-c{background:var(--green);}
+
+  /* Btn */
+  .btn{border:none;cursor:pointer;padding:7px 18px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.5px;transition:all .2s;}
+  .btn-primary{background:var(--blue);color:#000;}
+  .btn-primary:hover{background:var(--blue2);transform:translateY(-1px);}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+  .btn-ghost:hover{border-color:var(--blue);color:var(--blue);}
+
+  /* Main panel */
+  .main{display:flex;flex-direction:column;overflow:hidden;}
+
+  /* Dual score row */
+  .dual-score-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+  .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:10px;text-align:center;}
+  .metric-val{font-size:22px;font-weight:700;}
+  .metric-label{font-size:9px;color:var(--muted);margin-top:2px;letter-spacing:.5px;}
+  .metric-sub{font-size:8px;color:var(--muted);margin-top:1px;}
+  .mv-ai{color:var(--blue);}
+  .mv-hipaa{color:var(--hipaa);}
+  .mv-phi{color:var(--phi-red);}
+  .mv-rows{color:var(--teal);}
+  .mv-q{color:var(--orange);}
+
+  /* Medallion */
+  .medallion-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+  .medal-card{padding:12px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);transition:border-color .3s,box-shadow .3s;}
+  .medal-card.bronze-a{border-color:#b45309;box-shadow:0 0 14px rgba(180,83,9,.18);}
+  .medal-card.silver-a{border-color:#94a3b8;box-shadow:0 0 14px rgba(148,163,184,.18);}
+  .medal-card.gold-a{border-color:var(--yellow);box-shadow:0 0 14px rgba(234,179,8,.2);}
+  .medal-card.platinum-a{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.2);}
+  .medal-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+  .medal-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;}
+  .bronze-t{color:#f59e0b;}
+  .silver-t{color:#94a3b8;}
+  .gold-t{color:var(--yellow);}
+  .platinum-t{color:var(--purple);}
+  .medal-hipaa-badge{font-size:8px;padding:2px 6px;border-radius:8px;font-weight:700;}
+  .hipaa-bad{background:rgba(220,38,38,.15);color:#ef4444;}
+  .hipaa-warn{background:rgba(249,115,22,.15);color:#fb923c;}
+  .hipaa-ok{background:rgba(34,197,94,.15);color:#22c55e;}
+  .medal-sublabel{font-size:9px;color:var(--muted);margin-bottom:6px;}
+  .medal-scores{display:flex;gap:10px;margin-bottom:8px;}
+  .medal-score-item{flex:1;text-align:center;}
+  .medal-score-num{font-size:20px;font-weight:700;}
+  .medal-score-lbl{font-size:8px;color:var(--muted);}
+  .medal-tables{font-size:9px;color:var(--muted);margin-bottom:6px;}
+  .medal-status{font-size:9px;padding:2px 6px;border-radius:4px;display:inline-block;}
+  .st-exposed{background:rgba(220,38,38,.12);color:#ef4444;}
+  .st-deid{background:rgba(249,115,22,.12);color:#fb923c;}
+  .st-compliant{background:rgba(34,197,94,.12);color:#22c55e;}
+  .st-aiready{background:rgba(168,85,247,.12);color:var(--purple);}
+  .medal-bar{width:100%;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;}
+  .medal-bar-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+  .fb{background:#f59e0b;}.fs{background:#94a3b8;}.fg{background:var(--yellow);}.fp{background:var(--purple);}
+
+  /* Table grid */
+  .tables-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);}
+  .tbl-card{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px;transition:border-color .3s;}
+  .tbl-card:hover{border-color:var(--blue);}
+  .tbl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+  .tbl-name{font-size:10px;font-weight:700;}
+  .tbl-fhir{font-size:8px;color:var(--blue);background:rgba(14,165,233,.1);padding:1px 5px;border-radius:8px;}
+  .tbl-domain{font-size:9px;color:var(--muted);margin-bottom:5px;}
+  .layer-badge{display:inline-block;padding:2px 7px;border-radius:9px;font-size:8px;font-weight:700;letter-spacing:.5px;margin-bottom:5px;}
+  .lb-none{background:rgba(100,116,139,.12);color:var(--muted);}
+  .lb-source{background:rgba(6,182,212,.12);color:var(--teal);}
+  .lb-bronze{background:rgba(245,158,11,.12);color:#f59e0b;}
+  .lb-silver{background:rgba(148,163,184,.12);color:#94a3b8;}
+  .lb-gold{background:rgba(234,179,8,.15);color:var(--yellow);}
+  .lb-platinum{background:rgba(168,85,247,.15);color:var(--purple);}
+  .score-pair{display:flex;gap:6px;align-items:baseline;}
+  .tbl-ai-score{font-size:18px;font-weight:700;}
+  .tbl-hipaa-score{font-size:11px;font-weight:600;}
+  .tbl-rows{font-size:8px;color:var(--muted);margin-top:2px;}
+  .phi-indicator{font-size:8px;color:var(--phi-red);margin-top:2px;}
+
+  /* PHI panel */
+  .phi-panel{padding:12px;border-bottom:1px solid var(--border);}
+  .phi-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+  .phi-item{display:flex;align-items:center;gap:5px;padding:3px 5px;border-radius:4px;font-size:9px;}
+  .phi-found{background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);color:#fca5a5;}
+  .phi-not{background:rgba(30,58,95,.3);color:var(--muted);}
+  .phi-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+  .pd-found{background:var(--phi-red);}
+  .pd-not{background:var(--muted);}
+
+  /* Right panel */
+  .right-panel{border-left:1px solid var(--border);overflow-y:auto;}
+  .rp-section{padding:12px;border-bottom:1px solid var(--border);}
+  .rp-title{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;}
+
+  /* Score gauge */
+  .gauges-row{display:flex;gap:10px;justify-content:center;margin-bottom:10px;}
+  .score-bars{display:flex;flex-direction:column;gap:6px;}
+  .sb-row{display:flex;align-items:center;gap:7px;}
+  .sb-label{font-size:9px;color:var(--muted);width:105px;flex-shrink:0;}
+  .sb-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+  .sb-fill{height:100%;border-radius:3px;transition:width .8s ease;}
+  .sb-val{font-size:9px;font-weight:700;width:26px;text-align:right;flex-shrink:0;}
+
+  /* DQ rules */
+  .dq-rule{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(30,58,95,.4);}
+  .dq-rule:last-child{border-bottom:none;}
+  .dq-icon{font-size:11px;width:16px;text-align:center;flex-shrink:0;}
+  .dq-info{flex:1;}
+  .dq-name{font-size:10px;font-weight:600;}
+  .dq-rate{font-size:8px;color:var(--muted);}
+  .dq-badge{padding:2px 6px;border-radius:7px;font-size:8px;font-weight:700;}
+  .dqb-pass{background:rgba(34,197,94,.12);color:var(--green);}
+  .dqb-warn{background:rgba(234,179,8,.12);color:var(--yellow);}
+  .dqb-fail{background:rgba(239,68,68,.12);color:var(--red);}
+
+  /* Lineage */
+  .lineage-node{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:4px;border:1px solid var(--border);font-size:9px;margin-bottom:3px;}
+  .ln-source{border-color:var(--teal);color:var(--teal);background:rgba(6,182,212,.05);}
+  .ln-bronze{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.05);}
+  .ln-silver{border-color:#94a3b8;color:#94a3b8;background:rgba(148,163,184,.05);}
+  .ln-gold{border-color:var(--yellow);color:var(--yellow);background:rgba(234,179,8,.05);}
+  .ln-platinum{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.05);}
+  .lineage-arrow{text-align:center;font-size:9px;color:var(--muted);margin:1px 0;}
+  .lineage-transform{font-size:8px;color:var(--muted);text-align:center;}
+
+  /* Log */
+  .log-feed{flex:1;overflow-y:auto;padding:8px 12px;font-size:10px;line-height:1.7;}
+  .log-entry{display:flex;gap:8px;}
+  .log-ts{color:var(--muted);flex-shrink:0;}
+  .log-info{color:var(--text);}
+  .log-success{color:var(--green);}
+  .log-warn{color:var(--orange);}
+  .log-error{color:var(--red);}
+
+  /* Welcome */
+  .welcome{display:flex;align-items:center;justify-content:center;height:100%;}
+  .wcard{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:500px;text-align:center;}
+  .wcard-title{font-size:18px;font-weight:700;color:var(--blue);margin-bottom:8px;}
+  .wcard-sub{font-size:11px;color:var(--muted);margin-bottom:20px;line-height:1.7;}
+  .wcard-pills{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:20px;}
+  .wpill{padding:3px 9px;border:1px solid var(--border);border-radius:10px;font-size:9px;color:var(--muted);}
+  .wcard-btn{padding:11px 28px;font-size:13px;border-radius:7px;background:var(--blue);color:#000;border:none;cursor:pointer;font-weight:700;transition:all .2s;}
+  .wcard-btn:hover{background:var(--blue2);transform:translateY(-2px);box-shadow:0 6px 18px rgba(14,165,233,.3);}
+  .wcard-note{margin-top:10px;font-size:9px;color:var(--muted);}
+
+  /* Complete banner */
+  .complete-banner{background:linear-gradient(135deg,rgba(34,197,94,.1),rgba(99,102,241,.1));border:1px solid var(--green);border-radius:7px;padding:10px 14px;margin:10px 14px;display:flex;align-items:center;gap:10px;}
+  .cb-icon{font-size:22px;}
+  .cb-title{font-size:12px;font-weight:700;color:var(--green);}
+  .cb-sub{font-size:9px;color:var(--muted);margin-top:2px;}
+
+  /* Selects */
+  .rp-select{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 7px;border-radius:4px;font-size:10px;margin-bottom:8px;}
+
+  .score-hi{color:var(--green);}
+  .score-mid{color:var(--yellow);}
+  .score-lo{color:var(--orange);}
+  .score-bad{color:var(--red);}
+  .anim{transition:all .5s ease;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const TABLE_ORDER = ["PATIENTS","ENCOUNTERS","DIAGNOSES","MEDICATIONS",
+                     "LAB_RESULTS","PROCEDURES","CLAIMS","PROVIDERS"];
+
+const STAGE_DEFS = [
+  {id:1,name:"Discovery",    desc:"Profile clinical schema, detect 18 PHI identifiers",icon:"🔬"},
+  {id:2,name:"Assessment",   desc:"AI Readiness + HIPAA Compliance Score",             icon:"📋"},
+  {id:3,name:"Architecture", desc:"FHIR R4-aligned medallion DDL",                     icon:"🏗️"},
+  {id:4,name:"Extraction",   desc:"8-way parallel load (PHI audit log)",               icon:"⚡"},
+  {id:5,name:"Transform",    desc:"Safe Harbor de-ID · ICD/LOINC validation",          icon:"🔒"},
+  {id:6,name:"Data Quality", desc:"7 clinical DQ rules · auto-quarantine",             icon:"✅"},
+  {id:7,name:"Governance",   desc:"HIPAA audit trail · Purview · BAA compliance",      icon:"🛡️"},
+  {id:8,name:"AI Optimize",  desc:"Readmission risk · LOS · clinical NLP",             icon:"🤖"},
+  {id:9,name:"Monitoring",   desc:"Clinical quality dashboards · safety alerts",       icon:"📡"},
+];
+
+const DQ_ICONS = {
+  phi_completeness:"🪪",icd10_validity:"🏥",lab_range:"🧪",
+  medication_safety:"💊",claim_integrity:"💰",date_coherence:"📅",patient_dedup_mpi:"👤"
+};
+
+const fmtNum = n => n ? n.toLocaleString() : "0";
+
+function scoreColor(s) {
+  if (!s) return "score-bad";
+  if (s>=85) return "score-hi";
+  if (s>=70) return "score-mid";
+  if (s>=50) return "score-lo";
+  return "score-bad";
+}
+function hipaaColor(s) {
+  if (!s) return "score-bad";
+  if (s>=90) return "score-hi";
+  if (s>=70) return "score-mid";
+  if (s>=50) return "score-lo";
+  return "score-bad";
+}
+function hipaaLayerLabel(layer, score) {
+  if (!layer || !score) return null;
+  if (layer === "bronze") return score < 50 ? {txt:"⚠️ PHI EXPOSED", cls:"hipaa-bad"} : {txt:"PHI RESTRICTED", cls:"hipaa-warn"};
+  if (layer === "silver") return {txt:"🔒 DE-IDENTIFIED", cls:"hipaa-warn"};
+  if (layer === "gold")   return {txt:"✅ COMPLIANT", cls:"hipaa-ok"};
+  if (layer === "platinum") return {txt:"✅ COMPLIANT", cls:"hipaa-ok"};
+  return null;
+}
+function medalStatus(layer) {
+  if (!layer) return null;
+  const map = {
+    source:   {txt:"Not extracted",        cls:""},
+    bronze:   {txt:"⚠️ PHI Exposed",       cls:"st-exposed"},
+    silver:   {txt:"🔒 PHI De-identified", cls:"st-deid"},
+    gold:     {txt:"✅ HIPAA Compliant",   cls:"st-compliant"},
+    platinum: {txt:"🤖 AI-Ready",          cls:"st-aiready"},
+  };
+  return map[layer] || null;
+}
+
+// Circular gauge (dual: AI + HIPAA)
+function DualGauge({ aiScore, hipaaScore, size=110 }) {
+  const r = (size/2) - 10;
+  const circ = 2*Math.PI*r;
+  const aiPct   = Math.min((aiScore||0)/100,1);
+  const hipaaPct= Math.min((hipaaScore||0)/100,1);
+  const aiColor   = aiScore>=85?"#22c55e":aiScore>=70?"#eab308":aiScore>=50?"#f97316":"#ef4444";
+  const hipaaColor= hipaaScore>=90?"#22c55e":hipaaScore>=70?"#eab308":hipaaScore>=50?"#f97316":"#ef4444";
+  const innerR = r - 9;
+  const innerCirc = 2*Math.PI*innerR;
+  return (
+    <svg width={size} height={size}>
+      {/* Outer: AI score */}
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#122035" strokeWidth="8"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={aiColor} strokeWidth="8"
+        strokeDasharray={circ} strokeDashoffset={circ*(1-aiPct)} strokeLinecap="round"
+        style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%",transition:"stroke-dashoffset .8s"}}/>
+      {/* Inner: HIPAA score */}
+      <circle cx={size/2} cy={size/2} r={innerR} fill="none" stroke="#122035" strokeWidth="7"/>
+      <circle cx={size/2} cy={size/2} r={innerR} fill="none" stroke={hipaaColor} strokeWidth="7"
+        strokeDasharray={innerCirc} strokeDashoffset={innerCirc*(1-hipaaPct)} strokeLinecap="round"
+        style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%",transition:"stroke-dashoffset .8s"}}/>
+      <text x={size/2} y={size/2-7} textAnchor="middle" fill={aiColor} fontSize="16" fontWeight="700">{aiScore||"–"}</text>
+      <text x={size/2} y={size/2+9} textAnchor="middle" fill={hipaaColor} fontSize="10" fontWeight="600">{hipaaScore||"–"}</text>
+      <text x={size/2} y={size/2+20} textAnchor="middle" fill="#64748b" fontSize="7">AI / HIPAA</text>
+    </svg>
+  );
+}
+
+// Sidebar
+function StageSidebar({ currentStage, stagesComplete, stageProgress, onRun, onReset, running }) {
+  return (
+    <div className="panel">
+      <div className="panel-hdr">Clinical Pipeline Stages</div>
+      {STAGE_DEFS.map(s => {
+        const done = stagesComplete.includes(s.id);
+        const active = currentStage===s.id && !done;
+        const prog = stageProgress[s.id] || 0;
+        return (
+          <div key={s.id} className={`stage-item ${done?"complete":active?"active":"pending"}`}>
+            <div className={`sn ${done?"sn-c":active?"sn-a":"sn-p"}`}>{done?"✓":s.id}</div>
+            <div style={{flex:1}}>
+              <div className="stage-name">{s.icon} {s.name}</div>
+              <div className="stage-desc">{s.desc}</div>
+              {(active||done) && (
+                <div className="prog-bar">
+                  <div className={`prog-fill ${done?"pf-c":"pf-a"}`} style={{width:`${done?100:prog}%`}}/>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",gap:7}}>
+        <button className="btn btn-primary" onClick={onRun} disabled={running}>
+          {running ? "▶ Running..." : "▶ Run Pipeline"}
+        </button>
+        <button className="btn btn-ghost" onClick={onReset} disabled={running}>↺ Reset</button>
+      </div>
+    </div>
+  );
+}
+
+// Medallion cards with HIPAA status
+function MedallionCards({ tables }) {
+  const layers = [
+    {id:"bronze", label:"Bronze", sublabel:"Raw PHI Landing Zone", colorCls:"bronze-t", fillCls:"fb", activeCls:"bronze-a"},
+    {id:"silver", label:"Silver", sublabel:"HIPAA Safe Harbor De-ID", colorCls:"silver-t", fillCls:"fs", activeCls:"silver-a"},
+    {id:"gold",   label:"Gold",   sublabel:"FHIR R4 Validated + DQ", colorCls:"gold-t",   fillCls:"fg", activeCls:"gold-a"},
+    {id:"platinum",label:"Platinum",sublabel:"ML-Ready · Readmission Risk",colorCls:"platinum-t",fillCls:"fp",activeCls:"platinum-a"},
+  ];
+  const tableList = Object.entries(tables).map(([n,t])=>({name:n,...t}));
+  return (
+    <div className="medallion-row">
+      {layers.map(l => {
+        const here = tableList.filter(t=>t.layer===l.id);
+        const pastHere = tableList.filter(t=>["bronze","silver","gold","platinum"].indexOf(t.layer)>=["bronze","silver","gold","platinum"].indexOf(l.id)&&t.layer);
+        const avgAi = here.length ? Math.round(here.reduce((a,t)=>a+(t.score||0),0)/here.length) : null;
+        const avgHipaa = here.length ? Math.round(here.reduce((a,t)=>a+(t.hipaa_score||0),0)/here.length) : null;
+        const isActive = pastHere.length > 0;
+        const st = medalStatus(l.id);
+        const hipaaBadgeClass = l.id==="bronze"?"hipaa-bad":l.id==="silver"?"hipaa-warn":"hipaa-ok";
+        return (
+          <div key={l.id} className={`medal-card ${isActive?l.activeCls:""}`}>
+            <div className="medal-top">
+              <div className={`medal-label ${l.colorCls}`}>{l.label}</div>
+              {isActive && <div className={`medal-hipaa-badge ${hipaaBadgeClass}`}>
+                {l.id==="bronze"?"PHI EXPOSED":l.id==="silver"?"DE-ID":"COMPLIANT"}
+              </div>}
+            </div>
+            <div className="medal-sublabel">{l.sublabel}</div>
+            <div className="medal-scores">
+              <div className="medal-score-item">
+                <div className={`medal-score-num ${scoreColor(avgAi)}`}>{avgAi||"—"}</div>
+                <div className="medal-score-lbl">AI Score</div>
+              </div>
+              <div className="medal-score-item">
+                <div className={`medal-score-num ${hipaaColor(avgHipaa)}`}>{avgHipaa||"—"}</div>
+                <div className="medal-score-lbl">HIPAA</div>
+              </div>
+            </div>
+            <div className="medal-tables">{here.length}/{tableList.length} tables current · {pastHere.length} reached</div>
+            {st && <div className={`medal-status ${st.cls}`}>{st.txt}</div>}
+            <div className="medal-bar" style={{marginTop:7}}>
+              <div className={`medal-bar-fill ${l.fillCls}`}
+                   style={{width:`${isActive?(avgAi||0):0}%`}}/>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Table grid
+function TableGrid({ tables }) {
+  return (
+    <div className="tables-grid">
+      {TABLE_ORDER.map(tbl => {
+        const t = tables[tbl] || {};
+        const layer = t.layer;
+        const hl = hipaaLayerLabel(layer, t.hipaa_score);
+        return (
+          <div key={tbl} className="tbl-card">
+            <div className="tbl-top">
+              <div className="tbl-name">{tbl}</div>
+              {t.fhir && <div className="tbl-fhir">{t.fhir}</div>}
+            </div>
+            <div className="tbl-domain">{t.domain||"—"}</div>
+            <div className={`layer-badge lb-${layer||"none"}`}>
+              {layer ? layer.toUpperCase() : "PENDING"}
+            </div>
+            <div className="score-pair">
+              <div className={`tbl-ai-score anim ${scoreColor(t.score)}`}>{t.score||"—"}</div>
+              {t.hipaa_score && <div className={`tbl-hipaa-score ${hipaaColor(t.hipaa_score)}`}>/{t.hipaa_score}</div>}
+            </div>
+            {hl && <div style={{fontSize:8,marginTop:2}}><span className={`medal-hipaa-badge ${hl.cls}`}>{hl.txt}</span></div>}
+            <div className="tbl-rows">
+              {fmtNum(t.rows_processed)} rows
+              {t.rows_quarantined>0 && <span style={{color:"#ef4444"}}> · {fmtNum(t.rows_quarantined)} quarantined</span>}
+            </div>
+            {t.phi && t.phi.length>0 && <div className="phi-indicator">🔒 {t.phi.length} PHI cols</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// PHI identifier panel
+function PhiPanel({ phiSummary }) {
+  const PHI_18 = [
+    "Names","Geographic data (sub-state)","Dates (except year)","Phone numbers",
+    "Fax numbers","Email addresses","Social Security Numbers","Medical Record Numbers",
+    "Health plan beneficiary numbers","Account numbers","Certificate/license numbers",
+    "Vehicle identifiers","Device identifiers","URLs","IP addresses",
+    "Biometric identifiers","Full-face photographs","Any unique identifying number"
+  ];
+  const foundCount = Object.values(phiSummary).filter(Boolean).length;
+  const hasData = Object.keys(phiSummary).length > 0;
+  return (
+    <div className="phi-panel">
+      <div className="rp-title" style={{padding:0,marginBottom:8}}>
+        18 HIPAA PHI Identifiers
+        {hasData && <span style={{color:foundCount>0?"#ef4444":"#22c55e",marginLeft:8}}>
+          {foundCount} FOUND
+        </span>}
+      </div>
+      {!hasData ? (
+        <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>
+          PHI scan runs in Stage 1
+        </div>
+      ) : (
+        <div className="phi-grid">
+          {PHI_18.map(id => {
+            const found = phiSummary[id] || false;
+            return (
+              <div key={id} className={`phi-item ${found?"phi-found":"phi-not"}`}>
+                <div className={`phi-dot ${found?"pd-found":"pd-not"}`}/>
+                <span style={{fontSize:8}}>{id}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Right panel
+function RightPanel({ tables, dqResults, phiSummary }) {
+  const [selTable, setSelTable] = useState("PATIENTS");
+  const [linTable, setLinTable] = useState("PATIENTS");
+
+  const t = tables[selTable] || {};
+  const factors = t.factors || {};
+  const dq = dqResults[selTable] || {};
+  const lt = tables[linTable] || {};
+  const layerOrder = ["source","bronze","silver","gold","platinum"];
+  const curLayerIdx = layerOrder.indexOf(lt.layer);
+
+  const avgAi = (() => {
+    const arr = Object.values(tables).filter(x=>x.score);
+    if (!arr.length) return null;
+    return Math.round(arr.reduce((a,b)=>a+(b.score||0),0)/arr.length);
+  })();
+  const avgHipaa = (() => {
+    const arr = Object.values(tables).filter(x=>x.hipaa_score);
+    if (!arr.length) return null;
+    return Math.round(arr.reduce((a,b)=>a+(b.hipaa_score||0),0)/arr.length);
+  })();
+
+  return (
+    <div className="right-panel">
+      {/* Dual gauge + score factors */}
+      <div className="rp-section">
+        <div className="rp-title">Scores by Table</div>
+        <select value={selTable} onChange={e=>setSelTable(e.target.value)} className="rp-select">
+          {TABLE_ORDER.map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
+        <div className="gauges-row">
+          <DualGauge aiScore={t.score} hipaaScore={t.hipaa_score} size={110}/>
+        </div>
+        {Object.keys(factors).length>0 ? (
+          <div className="score-bars">
+            {[
+              {k:"phi_completeness",   lbl:"PHI Completeness",  w:25, col:"#6366f1"},
+              {k:"clinical_code_validity",lbl:"Code Validity",  w:25, col:"#0ea5e9"},
+              {k:"temporal_coherence", lbl:"Temporal Coherence",w:20, col:"#06b6d4"},
+              {k:"referential_integrity",lbl:"Referential",     w:15, col:"#22c55e"},
+              {k:"deid_readiness",     lbl:"De-ID Readiness",   w:15, col:"#a855f7"},
+            ].map(({k,lbl,w,col})=>{
+              const v = factors[k]||0;
+              return (
+                <div className="sb-row" key={k}>
+                  <div className="sb-label">{lbl} <span style={{color:"#64748b"}}>{w}%</span></div>
+                  <div className="sb-track"><div className="sb-fill" style={{width:`${v}%`,background:col}}/></div>
+                  <div className="sb-val" style={{color:col}}>{v}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>
+            Run pipeline to compute scores
+          </div>
+        )}
+      </div>
+
+      {/* Clinical DQ Rules */}
+      <div className="rp-section">
+        <div className="rp-title">Clinical DQ Rules</div>
+        <select value={selTable} onChange={e=>setSelTable(e.target.value)} className="rp-select">
+          {TABLE_ORDER.map(t=><option key={t} value={t}>{t}</option>)}
+        </select>
+        {Object.keys(dq).length>0 ? (
+          Object.entries(dq).map(([ruleId,rule])=>{
+            const pr = rule.pass_rate||0;
+            const bCls = pr>=95?"dqb-pass":pr>=80?"dqb-warn":"dqb-fail";
+            return (
+              <div key={ruleId} className="dq-rule">
+                <div className="dq-icon">{DQ_ICONS[ruleId]||"▸"}</div>
+                <div className="dq-info">
+                  <div className="dq-name">{rule.name}</div>
+                  <div className="dq-rate">{fmtNum(rule.passed)} pass · {fmtNum(rule.failed)} fail</div>
+                </div>
+                <div className={`dq-badge ${bCls}`}>{pr}%</div>
+              </div>
+            );
+          })
+        ) : (
+          <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>
+            DQ results appear after Stage 6
+          </div>
+        )}
+      </div>
+
+      {/* FHIR Lineage */}
+      <div className="rp-section">
+        <div className="rp-title">FHIR Lineage</div>
+        <select value={linTable} onChange={e=>setLinTable(e.target.value)} className="rp-select">
+          {TABLE_ORDER.map(t=><option key={t} value={t}>{tables[t]?.fhir ? `${t} (${tables[t].fhir})` : t}</option>)}
+        </select>
+        {[
+          {node:`Epic Oracle / ${linTable}`, cls:"ln-source", layer:"source", xf:null},
+          {node:`Bronze / ${linTable}`, cls:"ln-bronze", layer:"bronze", xf:"8-way extract · PHI audit log"},
+          {node:`Silver / ${linTable} (de-id)`, cls:"ln-silver", layer:"silver", xf:"Safe Harbor · ICD/LOINC validate"},
+          {node:`Gold / ${linTable} (FHIR R4)`, cls:"ln-gold", layer:"gold", xf:"7 clinical DQ rules · FHIR align"},
+          {node:`Platinum / ${linTable} (ML)`, cls:"ln-platinum", layer:"platinum", xf:"Readmission risk · NLP embeddings"},
+        ].map((item,i)=>{
+          const reached = curLayerIdx>=i-1||item.layer==="source";
+          return (
+            <React.Fragment key={item.node}>
+              {item.xf && (
+                <div className="lineage-arrow">
+                  <span style={{color:reached?"#06b6d4":"#1e3a5f"}}>↓</span>
+                  <div className="lineage-transform" style={{color:reached?"#64748b":"#1e3a5f"}}>{item.xf}</div>
+                </div>
+              )}
+              <div className={`lineage-node ${item.cls}`} style={{opacity:reached?1:0.25}}>
+                <span>▸</span><span style={{flex:1}}>{item.node}</span>
+                {lt.layer===item.layer && <span style={{fontSize:8,color:"#22c55e"}}>● LIVE</span>}
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Log feed
+function LogFeed({ logs }) {
+  const ref = useRef(null);
+  useEffect(()=>{ if(ref.current) ref.current.scrollTop=ref.current.scrollHeight; },[logs]);
+  return (
+    <div className="log-feed" ref={ref}>
+      {logs.length===0 && <div style={{color:"var(--muted)",textAlign:"center",paddingTop:16}}>Clinical pipeline logs will stream here...</div>}
+      {logs.map((l,i)=>(
+        <div key={i} className="log-entry">
+          <span className="log-ts">{l.ts}</span>
+          <span className={`log-${l.level}`}>{l.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Welcome
+function Welcome({ onRun }) {
+  return (
+    <div className="welcome">
+      <div className="wcard">
+        <div style={{fontSize:32,marginBottom:10}}>🏥</div>
+        <div className="wcard-title">Healthcare Data Pipeline</div>
+        <div className="wcard-sub">
+          9-stage pipeline for clinical EHR data: Epic Oracle → HIPAA-compliant, FHIR R4-aligned, AI-ready OneLake.<br/>
+          Watch PHI de-identification and data quality rise{" "}
+          <span style={{color:"#f59e0b"}}>Bronze (PHI Exposed)</span> →{" "}
+          <span style={{color:"#94a3b8"}}>Silver (De-identified)</span> →{" "}
+          <span style={{color:"#eab308"}}>Gold (HIPAA Compliant)</span> →{" "}
+          <span style={{color:"#a855f7"}}>Platinum (AI-Ready)</span>
+        </div>
+        <div className="wcard-pills">
+          {STAGE_DEFS.map(s=><div key={s.id} className="wpill">{s.icon} {s.name}</div>)}
+        </div>
+        <button className="wcard-btn" onClick={onRun}>▶ Run Healthcare Pipeline</button>
+        <div className="wcard-note">
+          8 clinical tables (PATIENTS · ENCOUNTERS · DIAGNOSES · MEDICATIONS ·<br/>
+          LAB_RESULTS · PROCEDURES · CLAIMS · PROVIDERS) · ~137K rows · ~24s
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// App
+function App() {
+  const [status, setStatus]           = useState("idle");
+  const [currentStage, setCurrentStage] = useState(0);
+  const [stagesComplete, setStagesComplete] = useState([]);
+  const [stageProgress, setStageProgress]  = useState({});
+  const [tables, setTables]           = useState({});
+  const [dqResults, setDqResults]     = useState({});
+  const [phiSummary, setPhiSummary]   = useState({});
+  const [logs, setLogs]               = useState([]);
+  const [pipelineResult, setPipelineResult] = useState(null);
+  const ws = useRef(null);
+  const running = status==="running";
+
+  const connect = useCallback(()=>{
+    ws.current = new WebSocket(`ws://${window.location.host}/ws`);
+    ws.current.onmessage = evt => {
+      const msg = JSON.parse(evt.data);
+      if (msg.type==="full_state") {
+        setStatus(msg.status||"idle");
+        setCurrentStage(msg.current_stage||0);
+        setStagesComplete(msg.stages_complete||[]);
+        setTables(msg.tables||{});
+        setDqResults(msg.dq_results||{});
+        setPhiSummary(msg.phi_summary||{});
+        setLogs(msg.logs||[]);
+        return;
+      }
+      if (msg.type==="pipeline_reset") {
+        setStatus("running"); setCurrentStage(0); setStagesComplete([]);
+        setStageProgress({}); setTables({}); setDqResults({}); setPhiSummary([]);
+        setLogs([]); setPipelineResult(null); return;
+      }
+      if (msg.type==="stage_start") { setCurrentStage(msg.stage); setStatus("running"); }
+      if (msg.type==="stage_progress") setStageProgress(p=>({...p,[msg.stage]:msg.progress}));
+      if (msg.type==="stage_complete") {
+        setStagesComplete(p=>[...p,msg.stage]);
+        setStageProgress(p=>({...p,[msg.stage]:100}));
+      }
+      if (msg.type==="table_update") {
+        setTables(prev=>({...prev,[msg.table]:{
+          ...(prev[msg.table]||{}),
+          layer:msg.layer, score:msg.score, hipaa_score:msg.hipaa_score,
+          rows_processed:msg.rows_processed, rows_quarantined:msg.rows_quarantined||0,
+          factors:msg.factors||(prev[msg.table]||{}).factors,
+          domain:(prev[msg.table]||{}).domain,
+          phi:(prev[msg.table]||{}).phi,
+          fhir:(prev[msg.table]||{}).fhir,
+        }}));
+      }
+      if (msg.type==="dq_result") setDqResults(p=>({...p,[msg.table]:msg.rules}));
+      if (msg.type==="phi_summary") setPhiSummary(msg.phi||{});
+      if (msg.type==="log") setLogs(p=>[...p.slice(-499),msg]);
+      if (msg.type==="pipeline_complete") { setStatus("complete"); setPipelineResult(msg); }
+    };
+    ws.current.onclose = ()=>setTimeout(connect,2000);
+  },[]);
+
+  useEffect(()=>{ connect(); return()=>ws.current?.close(); },[connect]);
+
+  const runPipeline=()=>{
+    if(ws.current?.readyState===WebSocket.OPEN)
+      ws.current.send(JSON.stringify({type:"run_pipeline"}));
+  };
+  const resetPipeline=()=>{
+    if(ws.current?.readyState===WebSocket.OPEN)
+      ws.current.send(JSON.stringify({type:"reset"}));
+    setStatus("idle"); setCurrentStage(0); setStagesComplete([]);
+    setStageProgress({}); setTables({}); setDqResults({}); setPhiSummary({});
+    setLogs([]); setPipelineResult(null);
+  };
+
+  const tableList = Object.entries(tables).map(([n,t])=>({name:n,...t}));
+  const totalRows = tableList.reduce((a,t)=>a+(t.rows_processed||0),0);
+  const totalQuarantined = tableList.reduce((a,t)=>a+(t.rows_quarantined||0),0);
+  const avgAi = (() => {
+    const arr=tableList.filter(t=>t.score);
+    return arr.length?Math.round(arr.reduce((a,t)=>a+(t.score||0),0)/arr.length):null;
+  })();
+  const avgHipaa = (() => {
+    const arr=tableList.filter(t=>t.hipaa_score);
+    return arr.length?Math.round(arr.reduce((a,t)=>a+(t.hipaa_score||0),0)/arr.length):null;
+  })();
+  const phiFoundCount = Object.values(phiSummary).filter(Boolean).length;
+
+  const headerAvgAi    = pipelineResult?.avg_ai_score || avgAi;
+  const headerAvgHipaa = pipelineResult?.avg_hipaa_score || avgHipaa;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="header">
+        <div className="logo">
+          <span className="logo-icon">🏥</span>
+          <div>
+            <div className="logo-text">AI READY DATA — HEALTHCARE</div>
+            <div className="logo-sub">Epic EHR · HIPAA · FHIR R4 · Clinical AI Pipeline</div>
+          </div>
+        </div>
+        <div className="header-scores">
+          {headerAvgAi && (
+            <div className="score-chip chip-ai">
+              <span className="chip-label">AI SCORE</span>
+              <span>{headerAvgAi}</span>
+            </div>
+          )}
+          {headerAvgHipaa && (
+            <div className="score-chip chip-hipaa">
+              <span className="chip-label">HIPAA</span>
+              <span>{headerAvgHipaa}</span>
+            </div>
+          )}
+          <div className={`status-badge status-${status}`}>
+            <div className="pulse"/>
+            {status==="idle"?"IDLE":status==="running"?"RUNNING":"COMPLIANT ✅"}
+          </div>
+        </div>
+      </div>
+
+      {status==="idle" && Object.keys(tables).length===0 ? (
+        <div style={{display:"grid",gridTemplateColumns:"252px 1fr 276px",height:"calc(100vh - 51px)"}}>
+          <StageSidebar currentStage={0} stagesComplete={[]} stageProgress={{}}
+            onRun={runPipeline} onReset={resetPipeline} running={false}/>
+          <Welcome onRun={runPipeline}/>
+          <RightPanel tables={{}} dqResults={{}} phiSummary={{}}/>
+        </div>
+      ) : (
+        <div className="layout">
+          <StageSidebar currentStage={currentStage} stagesComplete={stagesComplete}
+            stageProgress={stageProgress} onRun={runPipeline} onReset={resetPipeline} running={running}/>
+
+          <div className="main">
+            {status==="complete" && pipelineResult && (
+              <div className="complete-banner">
+                <div className="cb-icon">✅</div>
+                <div>
+                  <div className="cb-title">
+                    Pipeline Complete — All Clinical Tables HIPAA Compliant at Gold/Platinum
+                  </div>
+                  <div className="cb-sub">
+                    {fmtNum(pipelineResult.total_rows)} clinical records · {pipelineResult.tables_processed} FHIR resources ·
+                    AI score: {pipelineResult.avg_ai_score} · HIPAA score: {pipelineResult.avg_hipaa_score} · {pipelineResult.duration}s
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Metrics */}
+            {totalRows>0 && (
+              <div className="dual-score-row">
+                <div className="metric-card">
+                  <div className={`metric-val mv-ai`}>{avgAi||"—"}</div>
+                  <div className="metric-label">AI SCORE</div>
+                  <div className="metric-sub">avg across tables</div>
+                </div>
+                <div className="metric-card">
+                  <div className={`metric-val mv-hipaa`}>{avgHipaa||"—"}</div>
+                  <div className="metric-label">HIPAA SCORE</div>
+                  <div className="metric-sub">compliance rating</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-val mv-phi" style={{fontSize:16,paddingTop:3}}>{phiFoundCount}/18</div>
+                  <div className="metric-label">PHI FOUND</div>
+                  <div className="metric-sub">HIPAA identifiers</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-val mv-rows">{fmtNum(totalRows)}</div>
+                  <div className="metric-label">CLINICAL RECORDS</div>
+                  <div className="metric-sub">processed</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-val mv-q">{fmtNum(totalQuarantined)}</div>
+                  <div className="metric-label">QUARANTINED</div>
+                  <div className="metric-sub">DQ violations</div>
+                </div>
+              </div>
+            )}
+
+            {/* Medallion */}
+            {Object.keys(tables).length>0 && <MedallionCards tables={tables}/>}
+
+            {/* Table grid + PHI panel */}
+            {Object.keys(tables).length>0 && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 220px",borderBottom:"1px solid var(--border)"}}>
+                <TableGrid tables={tables}/>
+                <PhiPanel phiSummary={phiSummary}/>
+              </div>
+            )}
+
+            {/* Log header */}
+            <div style={{display:"flex",alignItems:"center",padding:"5px 12px",
+                         borderBottom:"1px solid var(--border)",background:"var(--bg2)",gap:8}}>
+              <span style={{fontSize:9,color:"var(--muted)",letterSpacing:2,fontWeight:700}}>CLINICAL PIPELINE LOG</span>
+              <span style={{width:5,height:5,borderRadius:"50%",
+                            background:running?"var(--blue)":"var(--green)",
+                            animation:running?"pulse 1.2s infinite":"none"}}/>
+              <span style={{fontSize:9,color:"var(--muted)"}}>{logs.length} events</span>
+            </div>
+            <LogFeed logs={logs}/>
+          </div>
+
+          <RightPanel tables={tables} dqResults={dqResults} phiSummary={phiSummary}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
