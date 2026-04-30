@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Ready Data — Pipeline POC</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg2: #161b22;
+    --bg3: #1c2128;
+    --border: #30363d;
+    --teal: #00d4aa;
+    --teal2: #00b894;
+    --blue: #58a6ff;
+    --purple: #a371f7;
+    --orange: #f0883e;
+    --red: #f85149;
+    --green: #3fb950;
+    --yellow: #e3b341;
+    --text: #e6edf3;
+    --muted: #8b949e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; overflow-x: hidden; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .header { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; background: var(--bg2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-star { color: var(--teal); font-size: 18px; }
+  .logo-text { font-size: 16px; font-weight: 700; letter-spacing: 1px; }
+  .logo-sub { font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+  .status-badge { display: flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
+  .status-idle { background: rgba(139,148,158,.15); border: 1px solid var(--border); color: var(--muted); }
+  .status-running { background: rgba(0,212,170,.12); border: 1px solid var(--teal); color: var(--teal); }
+  .status-complete { background: rgba(63,185,80,.12); border: 1px solid var(--green); color: var(--green); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: currentColor; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+  .btn { border: none; cursor: pointer; padding: 8px 20px; border-radius: 6px; font-size: 12px; font-weight: 600; letter-spacing: .5px; transition: all .2s; }
+  .btn-primary { background: var(--teal); color: #000; }
+  .btn-primary:hover { background: var(--teal2); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { border-color: var(--teal); color: var(--teal); }
+  .layout { display: grid; grid-template-columns: 260px 1fr 280px; gap: 0; height: calc(100vh - 53px); }
+  .panel { border-right: 1px solid var(--border); overflow-y: auto; }
+  .panel-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); padding: 12px 16px 8px; border-bottom: 1px solid var(--border); text-transform: uppercase; }
+  .stage-item { padding: 10px 16px; border-bottom: 1px solid rgba(48,54,61,.5); display: flex; align-items: center; gap: 10px; transition: background .2s; }
+  .stage-item.active { background: rgba(0,212,170,.06); border-left: 3px solid var(--teal); }
+  .stage-item.complete { border-left: 3px solid var(--green); }
+  .stage-item.pending { border-left: 3px solid transparent; }
+  .stage-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex-shrink: 0; }
+  .sn-pending { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+  .sn-active { background: var(--teal); color: #000; animation: pulse 1.2s infinite; }
+  .sn-complete { background: var(--green); color: #000; }
+  .stage-info { flex: 1; }
+  .stage-name { font-size: 11px; font-weight: 600; }
+  .stage-desc { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .stage-prog-bar { width: 100%; height: 3px; background: var(--bg3); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+  .stage-prog-fill { height: 100%; border-radius: 2px; transition: width .4s ease; }
+  .prog-active { background: var(--teal); }
+  .prog-complete { background: var(--green); }
+  .main-panel { display: flex; flex-direction: column; overflow: hidden; }
+  .medallion-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; border-bottom: 1px solid var(--border); }
+  .medal-card { padding: 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg2); position: relative; overflow: hidden; transition: border-color .3s, box-shadow .3s; }
+  .medal-card.bronze-active { border-color: #cd7f32; box-shadow: 0 0 16px rgba(205,127,50,.2); }
+  .medal-card.silver-active { border-color: #aaa; box-shadow: 0 0 16px rgba(170,170,170,.2); }
+  .medal-card.gold-active { border-color: var(--yellow); box-shadow: 0 0 16px rgba(227,179,65,.25); }
+  .medal-card.platinum-active { border-color: var(--purple); box-shadow: 0 0 16px rgba(163,113,247,.25); }
+  .medal-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .bronze-txt { color: #cd7f32; }
+  .silver-txt { color: #aaa; }
+  .gold-txt { color: var(--yellow); }
+  .platinum-txt { color: var(--purple); }
+  .medal-sublabel { font-size: 9px; color: var(--muted); }
+  .medal-score { font-size: 28px; font-weight: 700; margin: 8px 0 4px; }
+  .medal-tables { font-size: 10px; color: var(--muted); }
+  .medal-bar { width: 100%; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .medal-bar-fill { height: 100%; border-radius: 2px; transition: width .8s ease; }
+  .fill-bronze { background: #cd7f32; }
+  .fill-silver { background: #aaa; }
+  .fill-gold { background: var(--yellow); }
+  .fill-platinum { background: var(--purple); }
+  .tables-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .tbl-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; transition: border-color .3s; }
+  .tbl-card:hover { border-color: var(--teal); }
+  .tbl-name { font-size: 10px; font-weight: 700; letter-spacing: .5px; margin-bottom: 4px; }
+  .tbl-domain { font-size: 9px; color: var(--muted); margin-bottom: 6px; }
+  .tbl-layer-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 9px; font-weight: 700; letter-spacing: .5px; margin-bottom: 6px; }
+  .layer-none { background: rgba(139,148,158,.15); color: var(--muted); }
+  .layer-source { background: rgba(88,166,255,.15); color: var(--blue); }
+  .layer-bronze { background: rgba(205,127,50,.15); color: #cd7f32; }
+  .layer-silver { background: rgba(170,170,170,.15); color: #bbb; }
+  .layer-gold { background: rgba(227,179,65,.15); color: var(--yellow); }
+  .layer-platinum { background: rgba(163,113,247,.15); color: var(--purple); }
+  .tbl-score { font-size: 20px; font-weight: 700; }
+  .tbl-rows { font-size: 9px; color: var(--muted); margin-top: 3px; }
+  .tbl-pii { font-size: 9px; color: #f85149; margin-top: 2px; }
+  .log-feed { flex: 1; overflow-y: auto; padding: 8px 12px; font-size: 10px; line-height: 1.7; font-family: 'SF Mono','Fira Code',monospace; }
+  .log-entry { display: flex; gap: 8px; }
+  .log-ts { color: var(--muted); flex-shrink: 0; }
+  .log-info { color: var(--text); }
+  .log-success { color: var(--green); }
+  .log-warn { color: var(--orange); }
+  .log-error { color: var(--red); }
+  .right-panel { border-left: 1px solid var(--border); overflow-y: auto; }
+  .score-gauge { padding: 16px; border-bottom: 1px solid var(--border); }
+  .gauge-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; }
+  .gauge-circle { display: flex; justify-content: center; margin-bottom: 12px; }
+  .gauge-svg { transform: rotate(-90deg); }
+  .gauge-text { text-anchor: middle; dominant-baseline: middle; transform-origin: center; transform: rotate(90deg); }
+  .score-bars { display: flex; flex-direction: column; gap: 8px; }
+  .score-bar-row { display: flex; align-items: center; gap: 8px; }
+  .score-bar-label { font-size: 10px; color: var(--muted); width: 90px; flex-shrink: 0; }
+  .score-bar-track { flex: 1; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 3px; transition: width .8s ease; }
+  .score-bar-val { font-size: 10px; font-weight: 700; width: 28px; text-align: right; flex-shrink: 0; }
+  .dq-panel { padding: 14px; border-bottom: 1px solid var(--border); }
+  .dq-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; }
+  .dq-select { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 10px; margin-bottom: 10px; }
+  .dq-rule { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px solid rgba(48,54,61,.4); }
+  .dq-rule:last-child { border-bottom: none; }
+  .dq-rule-icon { font-size: 12px; width: 18px; text-align: center; }
+  .dq-rule-info { flex: 1; }
+  .dq-rule-name { font-size: 10px; font-weight: 600; }
+  .dq-rule-rate { font-size: 9px; color: var(--muted); }
+  .dq-rule-badge { padding: 2px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; }
+  .dq-pass { background: rgba(63,185,80,.15); color: var(--green); }
+  .dq-fail { background: rgba(248,81,73,.15); color: var(--red); }
+  .dq-warn { background: rgba(240,136,62,.15); color: var(--orange); }
+  .lineage-panel { padding: 14px; }
+  .lineage-title { font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; }
+  .lineage-flow { display: flex; flex-direction: column; gap: 4px; }
+  .lineage-node { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 10px; }
+  .lineage-node.source-node { border-color: var(--blue); color: var(--blue); background: rgba(88,166,255,.06); }
+  .lineage-node.bronze-node { border-color: #cd7f32; color: #cd7f32; background: rgba(205,127,50,.06); }
+  .lineage-node.silver-node { border-color: #aaa; color: #bbb; background: rgba(170,170,170,.06); }
+  .lineage-node.gold-node { border-color: var(--yellow); color: var(--yellow); background: rgba(227,179,65,.06); }
+  .lineage-node.platinum-node { border-color: var(--purple); color: var(--purple); background: rgba(163,113,247,.06); }
+  .lineage-arrow { text-align: center; font-size: 10px; color: var(--muted); }
+  .lineage-transform { font-size: 9px; color: var(--muted); text-align: center; }
+  .lineage-select { width: 100%; background: var(--bg3); border: 1px solid var(--border); color: var(--text); padding: 5px 8px; border-radius: 4px; font-size: 10px; margin-bottom: 10px; }
+  .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .metric-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center; }
+  .metric-val { font-size: 22px; font-weight: 700; color: var(--teal); }
+  .metric-label { font-size: 9px; color: var(--muted); margin-top: 2px; letter-spacing: .5px; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 16px; color: var(--muted); }
+  .empty-state svg { opacity: .3; }
+  .welcome-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 32px; max-width: 520px; text-align: center; }
+  .welcome-title { font-size: 20px; font-weight: 700; color: var(--teal); margin-bottom: 8px; }
+  .welcome-sub { font-size: 12px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+  .stage-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-bottom: 24px; }
+  .stage-chip { padding: 4px 10px; border: 1px solid var(--border); border-radius: 12px; font-size: 10px; color: var(--muted); }
+  .btn-large { padding: 12px 32px; font-size: 14px; border-radius: 8px; background: var(--teal); color: #000; border: none; cursor: pointer; font-weight: 700; letter-spacing: .5px; transition: all .2s; }
+  .btn-large:hover { background: var(--teal2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,212,170,.3); }
+  .score-color-high { color: var(--green); }
+  .score-color-mid { color: var(--yellow); }
+  .score-color-low { color: var(--orange); }
+  .score-color-bad { color: var(--red); }
+  .anim-score { transition: all .6s ease; }
+  .complete-banner { background: linear-gradient(135deg, rgba(63,185,80,.15), rgba(0,212,170,.15)); border: 1px solid var(--green); border-radius: 8px; padding: 12px 16px; margin: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .complete-banner-icon { font-size: 24px; }
+  .complete-banner-text { flex: 1; }
+  .complete-banner-title { font-size: 13px; font-weight: 700; color: var(--green); }
+  .complete-banner-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const STAGE_DEFS = [
+  { id:1, name:"Discovery",     desc:"Connect & profile all tables",    icon:"🔍" },
+  { id:2, name:"Assessment",    desc:"Compute AI Readiness Score",       icon:"📊" },
+  { id:3, name:"Architecture",  desc:"Auto-gen medallion DDL",           icon:"🏗️" },
+  { id:4, name:"Extraction",    desc:"8-way parallel load",              icon:"⚡" },
+  { id:5, name:"Transform",     desc:"Cleanse, dedupe, SCD2",            icon:"🔄" },
+  { id:6, name:"Data Quality",  desc:"7 rule types, auto-quarantine",    icon:"✅" },
+  { id:7, name:"Governance",    desc:"Purview + column lineage",         icon:"🛡️" },
+  { id:8, name:"AI Optimize",   desc:"Features & text chunking",         icon:"🤖" },
+  { id:9, name:"Monitoring",    desc:"Live WebSocket dashboards",        icon:"📡" },
+];
+
+const TABLE_ORDER = ["CUSTOMERS","ORDERS","PRODUCTS","EMPLOYEES",
+                     "FINANCIALS","INVENTORY","CONTRACTS","RISK_EVENTS"];
+
+const DQ_RULE_ICONS = {
+  null_check: "∅", uniqueness: "①", range: "↔", regex_pattern: ".*",
+  referential: "🔗", volume: "▲", freshness: "⏱"
+};
+
+const LAYER_COLOR = {
+  source: "source", bronze: "bronze", silver: "silver",
+  gold: "gold", platinum: "platinum"
+};
+
+function scoreColor(s) {
+  if (!s) return "score-color-bad";
+  if (s >= 85) return "score-color-high";
+  if (s >= 70) return "score-color-mid";
+  if (s >= 50) return "score-color-low";
+  return "score-color-bad";
+}
+
+function fmtNum(n) {
+  if (!n) return "0";
+  return n.toLocaleString();
+}
+
+// ── Score Gauge SVG ──────────────────────────────────────────────────────────
+function ScoreGauge({ score, label, size = 120 }) {
+  const r = (size / 2) - 12;
+  const circ = 2 * Math.PI * r;
+  const pct = score ? Math.min(score / 100, 1) : 0;
+  const dashOffset = circ * (1 - pct);
+  const color = score >= 85 ? "#3fb950" : score >= 70 ? "#e3b341" : score >= 50 ? "#f0883e" : "#f85149";
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1c2128" strokeWidth="10"/>
+      <circle
+        cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={color} strokeWidth="10"
+        strokeDasharray={circ}
+        strokeDashoffset={dashOffset}
+        strokeLinecap="round"
+        style={{transform:`rotate(-90deg)`, transformOrigin:"50% 50%", transition:"stroke-dashoffset .8s ease"}}
+      />
+      <text x={size/2} y={size/2 - 6} textAnchor="middle" dominantBaseline="middle"
+            fill={color} fontSize="20" fontWeight="700">{score || "–"}</text>
+      <text x={size/2} y={size/2 + 14} textAnchor="middle" dominantBaseline="middle"
+            fill="#8b949e" fontSize="9">{label}</text>
+    </svg>
+  );
+}
+
+// ── Medallion Card ───────────────────────────────────────────────────────────
+function MedallionCard({ layer, label, sublabel, tables, avgScore, colorClass, fillClass }) {
+  const tablesAtLayer = tables.filter(t => t.layer === layer).length;
+  const pct = avgScore ? Math.min((avgScore / 100) * 100, 100) : 0;
+  const isActive = tablesAtLayer > 0;
+
+  return (
+    <div className={`medal-card ${isActive ? layer + "-active" : ""}`}>
+      <div className={`medal-label ${colorClass}`}>{label}</div>
+      <div className="medal-sublabel">{sublabel}</div>
+      <div className={`medal-score ${colorClass}`}>{avgScore || "—"}</div>
+      <div className="medal-tables">{tablesAtLayer}/{tables.length} tables</div>
+      <div className="medal-bar">
+        <div className={`medal-bar-fill ${fillClass}`} style={{width: `${isActive ? pct : 0}%`}} />
+      </div>
+    </div>
+  );
+}
+
+// ── Stage Sidebar ────────────────────────────────────────────────────────────
+function StageSidebar({ currentStage, stagesComplete, stageProgress, onRun, onReset, running }) {
+  return (
+    <div className="panel">
+      <div className="panel-title">Pipeline Stages</div>
+      {STAGE_DEFS.map(s => {
+        const isComplete = stagesComplete.includes(s.id);
+        const isActive = currentStage === s.id && !isComplete;
+        const prog = stageProgress[s.id] || 0;
+        return (
+          <div key={s.id} className={`stage-item ${isComplete ? "complete" : isActive ? "active" : "pending"}`}>
+            <div className={`stage-num ${isComplete ? "sn-complete" : isActive ? "sn-active" : "sn-pending"}`}>
+              {isComplete ? "✓" : s.id}
+            </div>
+            <div className="stage-info">
+              <div className="stage-name">{s.icon} {s.name}</div>
+              <div className="stage-desc">{s.desc}</div>
+              {(isActive || isComplete) && (
+                <div className="stage-prog-bar">
+                  <div className={`stage-prog-fill ${isComplete ? "prog-complete" : "prog-active"}`}
+                       style={{width: `${isComplete ? 100 : prog}%`}} />
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <div style={{padding: "12px 14px", display:"flex", flexDirection:"column", gap:8}}>
+        <button className="btn btn-primary" onClick={onRun} disabled={running}>
+          {running ? "▶ Running..." : "▶ Run Pipeline"}
+        </button>
+        <button className="btn btn-ghost" onClick={onReset} disabled={running}>
+          ↺ Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Table Grid ───────────────────────────────────────────────────────────────
+function TableGrid({ tables }) {
+  return (
+    <div className="tables-grid">
+      {TABLE_ORDER.map(tbl => {
+        const t = tables[tbl] || {};
+        const layer = t.layer;
+        const score = t.score;
+        return (
+          <div key={tbl} className="tbl-card">
+            <div className="tbl-name">{tbl}</div>
+            <div className="tbl-domain">{t.domain || "—"}</div>
+            <div className={`tbl-layer-badge layer-${layer || "none"}`}>
+              {layer ? layer.toUpperCase() : "NOT STARTED"}
+            </div>
+            <div className={`tbl-score anim-score ${scoreColor(score)}`}>{score || "—"}</div>
+            <div className="tbl-rows">
+              {fmtNum(t.rows_processed)} rows
+              {t.rows_quarantined > 0 && <span style={{color:"#f85149"}}> · {fmtNum(t.rows_quarantined)} quarantined</span>}
+            </div>
+            {t.pii && t.pii.length > 0 && (
+              <div className="tbl-pii">🔒 PII: {t.pii.length} cols</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Right Panel: Score + DQ + Lineage ────────────────────────────────────────
+function RightPanel({ tables, dqResults }) {
+  const [selectedTable, setSelectedTable] = useState("CUSTOMERS");
+  const [lineageTable, setLineageTable] = useState("CUSTOMERS");
+
+  const t = tables[selectedTable] || {};
+  const score = t.score;
+  const factors = t.factors || {};
+  const dq = dqResults[selectedTable] || {};
+
+  const lt = tables[lineageTable] || {};
+  const lineageLayer = lt.layer;
+  const layers = ["source","bronze","silver","gold","platinum"];
+  const currentLayerIdx = layers.indexOf(lineageLayer);
+
+  const avgScore = (() => {
+    const tbls = Object.values(tables).filter(x => x.score);
+    if (!tbls.length) return null;
+    return Math.round(tbls.reduce((a,b) => a + (b.score||0), 0) / tbls.length);
+  })();
+
+  return (
+    <div className="right-panel">
+      {/* AI Readiness Score Gauge */}
+      <div className="score-gauge">
+        <div className="gauge-title">AI Readiness Score</div>
+        <div style={{display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8}}>
+          <select
+            value={selectedTable}
+            onChange={e => setSelectedTable(e.target.value)}
+            className="dq-select" style={{marginBottom:0, flex:1, marginRight:8}}>
+            {TABLE_ORDER.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+        <div className="gauge-circle">
+          <ScoreGauge score={score} label={t.layer ? t.layer.toUpperCase() : "PENDING"} />
+        </div>
+        {Object.keys(factors).length > 0 && (
+          <div className="score-bars">
+            {[
+              {key:"completeness", label:"Completeness", w:30},
+              {key:"uniqueness",   label:"Uniqueness",   w:20},
+              {key:"freshness",    label:"Freshness",    w:20},
+              {key:"cardinality",  label:"Cardinality",  w:15},
+              {key:"referential",  label:"Referential",  w:15},
+            ].map(({key,label,w}) => {
+              const val = factors[key] || 0;
+              const col = val>=80?"#3fb950":val>=65?"#e3b341":"#f0883e";
+              return (
+                <div className="score-bar-row" key={key}>
+                  <div className="score-bar-label">{label} <span style={{color:"#8b949e"}}>{w}%</span></div>
+                  <div className="score-bar-track">
+                    <div className="score-bar-fill" style={{width:`${val}%`, background:col}} />
+                  </div>
+                  <div className="score-bar-val" style={{color:col}}>{val}</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {!Object.keys(factors).length && (
+          <div style={{color:"#8b949e", fontSize:10, textAlign:"center", padding:"12px 0"}}>
+            Run pipeline to compute scores
+          </div>
+        )}
+      </div>
+
+      {/* DQ Rules */}
+      <div className="dq-panel">
+        <div className="dq-title">Data Quality Rules</div>
+        <select
+          value={selectedTable}
+          onChange={e => setSelectedTable(e.target.value)}
+          className="dq-select">
+          {TABLE_ORDER.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        {Object.keys(dq).length > 0 ? (
+          Object.entries(dq).map(([ruleId, rule]) => {
+            const passRate = rule.pass_rate || 0;
+            const badge = passRate >= 95 ? "dq-pass" : passRate >= 80 ? "dq-warn" : "dq-fail";
+            return (
+              <div key={ruleId} className="dq-rule">
+                <div className="dq-rule-icon">{DQ_RULE_ICONS[ruleId] || "▸"}</div>
+                <div className="dq-rule-info">
+                  <div className="dq-rule-name">{rule.name}</div>
+                  <div className="dq-rule-rate">
+                    {fmtNum(rule.passed)} pass · {fmtNum(rule.failed)} fail
+                  </div>
+                </div>
+                <div className={`dq-rule-badge ${badge}`}>{passRate}%</div>
+              </div>
+            );
+          })
+        ) : (
+          <div style={{color:"#8b949e", fontSize:10, textAlign:"center", padding:"12px 0"}}>
+            DQ results appear after Stage 6
+          </div>
+        )}
+      </div>
+
+      {/* Lineage */}
+      <div className="lineage-panel">
+        <div className="lineage-title">Data Lineage</div>
+        <select
+          value={lineageTable}
+          onChange={e => setLineageTable(e.target.value)}
+          className="lineage-select">
+          {TABLE_ORDER.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <div className="lineage-flow">
+          {[
+            {node:"Oracle Source", cls:"source-node", layer:"source", transform:null},
+            {node:`Bronze / ${lineageTable}`, cls:"bronze-node", layer:"bronze", transform:"8-way parallel extract"},
+            {node:`Silver / ${lineageTable}`, cls:"silver-node", layer:"silver", transform:"Cleanse + SCD2"},
+            {node:`Gold / ${lineageTable}`, cls:"gold-node", layer:"gold", transform:"DQ rules + Aggregate"},
+            {node:`Platinum / ${lineageTable}`, cls:"platinum-node", layer:"platinum", transform:"Feature eng + Embeddings"},
+          ].map((item, idx) => {
+            const reached = currentLayerIdx >= (idx - 1) || item.layer === "source";
+            const active = layers.indexOf(lineageLayer) >= idx - 1;
+            return (
+              <React.Fragment key={item.node}>
+                {item.transform && (
+                  <div className="lineage-arrow">
+                    <span style={{color: active ? "#00d4aa" : "#30363d"}}>↓</span>
+                    <div className="lineage-transform" style={{color: active ? "#8b949e" : "#30363d"}}>
+                      {item.transform}
+                    </div>
+                  </div>
+                )}
+                <div className={`lineage-node ${item.cls}`}
+                     style={{opacity: reached ? 1 : 0.3}}>
+                  <span>▸</span>
+                  <span>{item.node}</span>
+                  {lineageLayer === item.layer && <span style={{marginLeft:"auto", fontSize:9, color:"#3fb950"}}>● LIVE</span>}
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Log Feed ─────────────────────────────────────────────────────────────────
+function LogFeed({ logs }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+  }, [logs]);
+
+  return (
+    <div className="log-feed" ref={ref}>
+      {logs.length === 0 && (
+        <div style={{color:"#8b949e", textAlign:"center", paddingTop:20}}>
+          Pipeline logs will appear here...
+        </div>
+      )}
+      {logs.map((log, i) => (
+        <div key={i} className="log-entry">
+          <span className="log-ts">{log.ts}</span>
+          <span className={`log-${log.level}`}>{log.message}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Welcome Screen ────────────────────────────────────────────────────────────
+function WelcomeScreen({ onRun }) {
+  return (
+    <div className="empty-state">
+      <div className="welcome-card">
+        <div style={{fontSize:36, marginBottom:12}}>★</div>
+        <div className="welcome-title">AI Ready Data Pipeline</div>
+        <div className="welcome-sub">
+          9-stage automated pipeline: Oracle legacy databases → Microsoft Fabric OneLake.<br/>
+          Watch data quality progress from <span style={{color:"#cd7f32"}}>Bronze</span> →{" "}
+          <span style={{color:"#aaa"}}>Silver</span> →{" "}
+          <span style={{color:"#e3b341"}}>Gold</span> →{" "}
+          <span style={{color:"#a371f7"}}>Platinum</span> in real time.
+        </div>
+        <div className="stage-chips">
+          {STAGE_DEFS.map(s => (
+            <div key={s.id} className="stage-chip">{s.icon} {s.name}</div>
+          ))}
+        </div>
+        <button className="btn-large" onClick={onRun}>▶ Run Full Pipeline</button>
+        <div style={{marginTop:12, fontSize:10, color:"#8b949e"}}>
+          8 Oracle tables · 91,000+ rows · ~22 seconds
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── App ──────────────────────────────────────────────────────────────────────
+function App() {
+  const [status, setStatus] = useState("idle");
+  const [currentStage, setCurrentStage] = useState(0);
+  const [stagesComplete, setStagesComplete] = useState([]);
+  const [stageProgress, setStageProgress] = useState({});
+  const [tables, setTables] = useState({});
+  const [dqResults, setDqResults] = useState({});
+  const [lineage, setLineage] = useState({});
+  const [logs, setLogs] = useState([]);
+  const [pipelineResult, setPipelineResult] = useState(null);
+  const ws = useRef(null);
+  const running = status === "running";
+
+  const connect = useCallback(() => {
+    const url = `ws://${window.location.host}/ws`;
+    ws.current = new WebSocket(url);
+
+    ws.current.onmessage = (evt) => {
+      const msg = JSON.parse(evt.data);
+
+      if (msg.type === "full_state") {
+        setStatus(msg.status || "idle");
+        setCurrentStage(msg.current_stage || 0);
+        setStagesComplete(msg.stages_complete || []);
+        setTables(msg.tables || {});
+        setDqResults(msg.dq_results || {});
+        setLineage(msg.lineage || {});
+        setLogs(msg.logs || []);
+        return;
+      }
+
+      if (msg.type === "pipeline_reset") {
+        setStatus("running");
+        setCurrentStage(0);
+        setStagesComplete([]);
+        setStageProgress({});
+        setTables({});
+        setDqResults({});
+        setLineage({});
+        setLogs([]);
+        setPipelineResult(null);
+        return;
+      }
+
+      if (msg.type === "stage_start") {
+        setCurrentStage(msg.stage);
+        setStatus("running");
+      }
+
+      if (msg.type === "stage_progress") {
+        setStageProgress(p => ({...p, [msg.stage]: msg.progress}));
+      }
+
+      if (msg.type === "stage_complete") {
+        setStagesComplete(p => [...p, msg.stage]);
+        setStageProgress(p => ({...p, [msg.stage]: 100}));
+      }
+
+      if (msg.type === "table_update") {
+        setTables(prev => ({
+          ...prev,
+          [msg.table]: {
+            ...(prev[msg.table] || {}),
+            layer: msg.layer,
+            score: msg.score,
+            rows_processed: msg.rows_processed,
+            rows_quarantined: msg.rows_quarantined || 0,
+            factors: msg.factors || (prev[msg.table] || {}).factors,
+            domain: (prev[msg.table] || {}).domain,
+            pii: (prev[msg.table] || {}).pii,
+          }
+        }));
+      }
+
+      if (msg.type === "dq_result") {
+        setDqResults(prev => ({...prev, [msg.table]: msg.rules}));
+      }
+
+      if (msg.type === "lineage_update") {
+        setLineage(msg.lineage || {});
+      }
+
+      if (msg.type === "log") {
+        setLogs(prev => [...prev.slice(-499), msg]);
+      }
+
+      if (msg.type === "pipeline_complete") {
+        setStatus("complete");
+        setPipelineResult(msg);
+      }
+    };
+
+    ws.current.onclose = () => setTimeout(connect, 2000);
+  }, []);
+
+  useEffect(() => { connect(); return () => ws.current?.close(); }, [connect]);
+
+  const runPipeline = () => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({type: "run_pipeline"}));
+    }
+  };
+
+  const resetPipeline = () => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({type: "reset"}));
+      setStatus("idle");
+      setCurrentStage(0);
+      setStagesComplete([]);
+      setStageProgress({});
+      setTables({});
+      setDqResults({});
+      setLineage({});
+      setLogs([]);
+      setPipelineResult(null);
+    }
+  };
+
+  // Compute medallion stats
+  const tableList = Object.entries(tables).map(([name, t]) => ({name, ...t}));
+
+  const layerAvgScore = (layer) => {
+    const tbls = tableList.filter(t => t.layer === layer && t.score);
+    if (!tbls.length) return null;
+    return Math.round(tbls.reduce((a,t) => a + t.score, 0) / tbls.length);
+  };
+
+  const totalRows = tableList.reduce((a,t) => a + (t.rows_processed || 0), 0);
+  const totalQuarantined = tableList.reduce((a,t) => a + (t.rows_quarantined || 0), 0);
+  const avgScore = (() => {
+    const tbls = tableList.filter(t => t.score);
+    if (!tbls.length) return null;
+    return Math.round(tbls.reduce((a,t) => a + t.score, 0) / tbls.length);
+  })();
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="header">
+        <div className="logo">
+          <span className="logo-star">★</span>
+          <div>
+            <div className="logo-text">AI READY DATA</div>
+            <div className="logo-sub">9-STAGE PIPELINE POC</div>
+          </div>
+        </div>
+        <div style={{display:"flex", gap:12, alignItems:"center"}}>
+          {pipelineResult && (
+            <div style={{fontSize:10, color:"#8b949e"}}>
+              {fmtNum(pipelineResult.total_rows)} rows · {pipelineResult.duration}s · avg score: {pipelineResult.avg_ai_score}
+            </div>
+          )}
+          <div className={`status-badge status-${status}`}>
+            <div className="pulse" />
+            {status === "idle" ? "IDLE" : status === "running" ? "RUNNING" : "COMPLETE"}
+          </div>
+        </div>
+      </div>
+
+      {status === "idle" && Object.keys(tables).length === 0 ? (
+        /* Welcome screen overlaid on full layout */
+        <div style={{display:"grid", gridTemplateColumns:"260px 1fr 280px", height:"calc(100vh - 53px)"}}>
+          <StageSidebar
+            currentStage={0} stagesComplete={[]} stageProgress={{}}
+            onRun={runPipeline} onReset={resetPipeline} running={false}
+          />
+          <div style={{display:"flex", alignItems:"center", justifyContent:"center"}}>
+            <WelcomeScreen onRun={runPipeline} />
+          </div>
+          <div className="right-panel">
+            <RightPanel tables={{}} dqResults={{}} />
+          </div>
+        </div>
+      ) : (
+        <div className="layout">
+          {/* Left: Stage sidebar */}
+          <StageSidebar
+            currentStage={currentStage}
+            stagesComplete={stagesComplete}
+            stageProgress={stageProgress}
+            onRun={runPipeline}
+            onReset={resetPipeline}
+            running={running}
+          />
+
+          {/* Center: Main content */}
+          <div className="main-panel">
+            {/* Complete banner */}
+            {status === "complete" && pipelineResult && (
+              <div className="complete-banner">
+                <div className="complete-banner-icon">🎉</div>
+                <div className="complete-banner-text">
+                  <div className="complete-banner-title">
+                    Pipeline Complete — All Tables at Gold/Platinum
+                  </div>
+                  <div className="complete-banner-sub">
+                    {fmtNum(pipelineResult.total_rows)} rows processed · {pipelineResult.tables_processed} tables ·
+                    avg AI readiness: {pipelineResult.avg_ai_score} · {pipelineResult.duration}s total
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Metrics row */}
+            {totalRows > 0 && (
+              <div className="metrics-row">
+                <div className="metric-card">
+                  <div className="metric-val">{fmtNum(totalRows)}</div>
+                  <div className="metric-label">ROWS PROCESSED</div>
+                </div>
+                <div className="metric-card">
+                  <div className="metric-val" style={{color:"#f85149"}}>{fmtNum(totalQuarantined)}</div>
+                  <div className="metric-label">QUARANTINED</div>
+                </div>
+                <div className="metric-card">
+                  <div className={`metric-val ${scoreColor(avgScore)}`}>{avgScore || "—"}</div>
+                  <div className="metric-label">AVG AI SCORE</div>
+                </div>
+              </div>
+            )}
+
+            {/* Medallion Architecture Flow */}
+            <div className="medallion-row">
+              <MedallionCard
+                layer="bronze" label="Bronze" sublabel="Raw Landing"
+                tables={tableList} avgScore={layerAvgScore("bronze") || layerAvgScore("silver") || layerAvgScore("gold") || layerAvgScore("platinum")}
+                colorClass="bronze-txt" fillClass="fill-bronze"
+              />
+              <MedallionCard
+                layer="silver" label="Silver" sublabel="Cleansed / SCD2"
+                tables={tableList} avgScore={layerAvgScore("silver") || layerAvgScore("gold") || layerAvgScore("platinum")}
+                colorClass="silver-txt" fillClass="fill-silver"
+              />
+              <MedallionCard
+                layer="gold" label="Gold" sublabel="Aggregated / DQ"
+                tables={tableList} avgScore={layerAvgScore("gold") || layerAvgScore("platinum")}
+                colorClass="gold-txt" fillClass="fill-gold"
+              />
+              <MedallionCard
+                layer="platinum" label="Platinum" sublabel="AI-Ready / ML"
+                tables={tableList} avgScore={layerAvgScore("platinum")}
+                colorClass="platinum-txt" fillClass="fill-platinum"
+              />
+            </div>
+
+            {/* Table Grid */}
+            {Object.keys(tables).length > 0 && <TableGrid tables={tables} />}
+
+            {/* Log feed */}
+            <div style={{display:"flex", alignItems:"center", padding:"6px 14px",
+                         borderBottom:"1px solid #30363d", background:"#161b22", gap:8}}>
+              <span style={{fontSize:10, color:"#8b949e", letterSpacing:2, fontWeight:700}}>LIVE LOG</span>
+              <span style={{width:6, height:6, borderRadius:"50%",
+                            background: running ? "#00d4aa" : "#3fb950",
+                            animation: running ? "pulse 1.2s infinite" : "none"}} />
+              <span style={{fontSize:10, color:"#8b949e"}}>{logs.length} events</span>
+            </div>
+            <LogFeed logs={logs} />
+          </div>
+
+          {/* Right: Scores + DQ + Lineage */}
+          <RightPanel tables={tables} dqResults={dqResults} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
