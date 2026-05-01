@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Ready Data — Live Pipeline Demo</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root{
+  --bg:#0d1117;--bg2:#161b22;--bg3:#1c2128;--border:#30363d;
+  --teal:#00d4aa;--teal2:#00b894;--blue:#58a6ff;--hblue:#0ea5e9;
+  --purple:#a371f7;--orange:#f0883e;--red:#f85149;--green:#3fb950;
+  --yellow:#e3b341;--hipaa:#6366f1;--phi:#dc2626;
+  --text:#e6edf3;--muted:#8b949e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code',monospace;font-size:12px;min-height:100vh;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg2);}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.8)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes slide{from{width:0}to{width:100%}}
+
+/* NAV */
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;}
+.nav-logo{display:flex;align-items:center;gap:10px;}
+.nav-star{color:var(--teal);font-size:20px;}
+.nav-title{font-size:15px;font-weight:700;letter-spacing:1px;}
+.nav-sub{font-size:9px;color:var(--muted);letter-spacing:2px;}
+.nav-tabs{display:flex;gap:4px;}
+.nav-tab{padding:6px 16px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .2s;letter-spacing:.5px;}
+.nav-tab.active-gen{border-color:var(--teal);color:var(--teal);background:rgba(0,212,170,.08);}
+.nav-tab.active-hc{border-color:var(--hblue);color:var(--hblue);background:rgba(14,165,233,.08);}
+.nav-tab:hover{color:var(--text);}
+.nav-right{display:flex;align-items:center;gap:12px;}
+.badge{padding:4px 12px;border-radius:12px;font-size:10px;font-weight:700;display:flex;align-items:center;gap:5px;}
+.badge-idle{background:rgba(139,148,158,.12);border:1px solid var(--muted);color:var(--muted);}
+.badge-run{background:rgba(0,212,170,.12);border:1px solid var(--teal);color:var(--teal);}
+.badge-hcrun{background:rgba(14,165,233,.12);border:1px solid var(--hblue);color:var(--hblue);}
+.badge-done{background:rgba(63,185,80,.12);border:1px solid var(--green);color:var(--green);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 1.2s infinite;}
+.btn{border:none;cursor:pointer;padding:8px 22px;border-radius:6px;font-size:12px;font-weight:700;letter-spacing:.5px;transition:all .2s;}
+.btn-teal{background:var(--teal);color:#000;}
+.btn-teal:hover{background:var(--teal2);}
+.btn-blue{background:var(--hblue);color:#000;}
+.btn-blue:hover{background:#0284c7;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--teal);color:var(--teal);}
+
+/* HERO */
+.hero{padding:40px 28px 28px;text-align:center;background:linear-gradient(180deg,rgba(0,212,170,.04) 0%,transparent 100%);}
+.hero-title{font-size:28px;font-weight:700;line-height:1.3;margin-bottom:10px;}
+.hero-accent{color:var(--teal);}
+.hero-hc-accent{color:var(--hblue);}
+.hero-sub{font-size:13px;color:var(--muted);max-width:580px;margin:0 auto 24px;line-height:1.7;}
+.hero-stats{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-bottom:28px;}
+.hstat{padding:10px 20px;border:1px solid var(--border);border-radius:8px;background:var(--bg2);text-align:center;}
+.hstat-val{font-size:20px;font-weight:700;color:var(--teal);}
+.hstat-hc-val{color:var(--hblue);}
+.hstat-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;margin-top:2px;}
+.hero-btns{display:flex;gap:10px;justify-content:center;}
+
+/* MAIN LAYOUT */
+.main-layout{display:grid;grid-template-columns:240px 1fr 260px;min-height:calc(100vh - 160px);}
+.sidebar{border-right:1px solid var(--border);padding:0;}
+.center{display:flex;flex-direction:column;}
+.right{border-left:1px solid var(--border);}
+.sec-hdr{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);text-transform:uppercase;}
+
+/* STAGES */
+.stage-row{padding:9px 13px;border-bottom:1px solid rgba(48,54,61,.5);display:flex;align-items:center;gap:8px;transition:background .15s;}
+.stage-row.s-active.gen{background:rgba(0,212,170,.06);border-left:3px solid var(--teal);}
+.stage-row.s-active.hc{background:rgba(14,165,233,.06);border-left:3px solid var(--hblue);}
+.stage-row.s-done{border-left:3px solid var(--green);}
+.stage-row.s-pend{border-left:3px solid transparent;}
+.snum{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;}
+.sn-p{background:var(--bg3);color:var(--muted);border:1px solid var(--border);}
+.sn-ag{background:var(--teal);color:#000;animation:pulse 1.2s infinite;}
+.sn-ah{background:var(--hblue);color:#000;animation:pulse 1.2s infinite;}
+.sn-d{background:var(--green);color:#000;}
+.sname{font-size:10px;font-weight:600;}
+.sdesc{font-size:9px;color:var(--muted);margin-top:1px;}
+.spbar{width:100%;height:2px;background:var(--bg3);border-radius:1px;margin-top:5px;overflow:hidden;}
+.spfill{height:100%;border-radius:1px;transition:width .5s ease;}
+.spf-g{background:var(--teal);}
+.spf-h{background:var(--hblue);}
+.spf-d{background:var(--green);}
+
+/* MEDALLION */
+.medal-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.mc{padding:12px;border-radius:7px;border:1px solid var(--border);background:var(--bg2);transition:all .3s;}
+.mc.bronze-a{border-color:#b45309;box-shadow:0 0 14px rgba(180,83,9,.2);}
+.mc.silver-a{border-color:#94a3b8;box-shadow:0 0 12px rgba(148,163,184,.15);}
+.mc.gold-a{border-color:var(--yellow);box-shadow:0 0 14px rgba(227,179,65,.2);}
+.mc.plat-a{border-color:var(--purple);box-shadow:0 0 14px rgba(163,113,247,.2);}
+.mc-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.mc-lbl{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;}
+.mc-hipaa{font-size:8px;padding:2px 6px;border-radius:7px;font-weight:700;}
+.hbad{background:rgba(220,38,38,.12);color:#ef4444;}
+.hwarn{background:rgba(249,115,22,.12);color:#fb923c;}
+.hok{background:rgba(34,197,94,.12);color:#22c55e;}
+.mc-sub{font-size:9px;color:var(--muted);margin:4px 0 8px;}
+.mc-scores{display:flex;gap:12px;}
+.mc-snum{font-size:22px;font-weight:700;}
+.mc-slbl{font-size:8px;color:var(--muted);}
+.mc-tables{font-size:8px;color:var(--muted);margin:5px 0;}
+.mc-status{font-size:8px;padding:2px 6px;border-radius:4px;display:inline-block;}
+.st-exp{background:rgba(220,38,38,.1);color:#ef4444;}
+.st-deid{background:rgba(249,115,22,.1);color:#fb923c;}
+.st-comp{background:rgba(34,197,94,.1);color:#22c55e;}
+.st-ai{background:rgba(163,113,247,.1);color:var(--purple);}
+.mc-bar{width:100%;height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:7px;}
+.mc-bar-fill{height:100%;border-radius:2px;transition:width 1s ease;}
+
+/* TABLE GRID */
+.tbl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.tc{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:9px;transition:border-color .2s;}
+.tc:hover{border-color:var(--teal);}
+.tc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;}
+.tc-name{font-size:9px;font-weight:700;letter-spacing:.3px;}
+.tc-tag{font-size:7px;padding:1px 5px;border-radius:7px;}
+.tag-fhir{background:rgba(14,165,233,.12);color:var(--hblue);}
+.tag-erp{background:rgba(0,212,170,.1);color:var(--teal);}
+.tc-dom{font-size:8px;color:var(--muted);margin-bottom:5px;}
+.lbadge{display:inline-block;padding:1px 7px;border-radius:8px;font-size:8px;font-weight:700;margin-bottom:4px;}
+.lb-none{background:rgba(139,148,158,.1);color:var(--muted);}
+.lb-src{background:rgba(88,166,255,.1);color:var(--blue);}
+.lb-bz{background:rgba(245,158,11,.1);color:#f59e0b;}
+.lb-sv{background:rgba(148,163,184,.1);color:#94a3b8;}
+.lb-gd{background:rgba(227,179,65,.12);color:var(--yellow);}
+.lb-pl{background:rgba(163,113,247,.12);color:var(--purple);}
+.sc-pair{display:flex;gap:5px;align-items:baseline;}
+.tc-ai{font-size:18px;font-weight:700;}
+.tc-hipaa{font-size:11px;font-weight:600;color:var(--hipaa);}
+.tc-rows{font-size:8px;color:var(--muted);margin-top:2px;}
+.phi-tag{font-size:8px;color:#ef4444;margin-top:1px;}
+
+/* SCORES COL */
+.rp-sec{padding:12px;border-bottom:1px solid var(--border);}
+.rp-lbl{font-size:9px;font-weight:700;letter-spacing:2px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;}
+.rp-sel{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:5px 7px;border-radius:4px;font-size:10px;margin-bottom:8px;}
+.gauge-wrap{display:flex;justify-content:center;margin-bottom:10px;}
+.sbar-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;}
+.sbar-lbl{font-size:9px;color:var(--muted);width:95px;flex-shrink:0;}
+.sbar-track{flex:1;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.sbar-fill{height:100%;border-radius:3px;transition:width .8s ease;}
+.sbar-val{font-size:9px;font-weight:700;width:24px;text-align:right;flex-shrink:0;}
+.dq-row{display:flex;align-items:center;gap:5px;padding:4px 0;border-bottom:1px solid rgba(48,54,61,.4);}
+.dq-row:last-child{border-bottom:none;}
+.dq-ico{font-size:11px;width:16px;text-align:center;flex-shrink:0;}
+.dq-inf{flex:1;}
+.dq-nm{font-size:9px;font-weight:600;}
+.dq-rt{font-size:8px;color:var(--muted);}
+.dq-b{padding:2px 5px;border-radius:6px;font-size:8px;font-weight:700;}
+.dqp{background:rgba(63,185,80,.12);color:var(--green);}
+.dqw{background:rgba(227,179,65,.12);color:var(--yellow);}
+.dqf{background:rgba(248,81,73,.12);color:var(--red);}
+
+/* PHI GRID */
+.phi-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-top:6px;}
+.phi-item{display:flex;align-items:center;gap:4px;padding:2px 4px;border-radius:3px;font-size:8px;}
+.phi-y{background:rgba(220,38,38,.07);border:1px solid rgba(220,38,38,.2);color:#fca5a5;}
+.phi-n{background:rgba(30,58,95,.2);color:var(--muted);}
+.phi-d{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.pd-y{background:#dc2626;}.pd-n{background:var(--muted);}
+
+/* LOG */
+.log-area{flex:1;overflow-y:auto;padding:8px 12px;font-size:10px;line-height:1.7;min-height:150px;max-height:220px;}
+.log-line{display:flex;gap:8px;animation:fadeIn .2s ease;}
+.l-ts{color:var(--muted);flex-shrink:0;}
+.l-info{color:var(--text);}
+.l-ok{color:var(--green);}
+.l-warn{color:var(--orange);}
+.l-err{color:var(--red);}
+
+/* COMPLETE */
+.done-banner{margin:10px 14px;padding:10px 14px;border-radius:7px;border:1px solid var(--green);background:linear-gradient(135deg,rgba(63,185,80,.08),rgba(0,212,170,.08));display:flex;align-items:center;gap:10px;animation:fadeIn .4s ease;}
+.done-title{font-size:12px;font-weight:700;color:var(--green);}
+.done-sub{font-size:9px;color:var(--muted);margin-top:2px;}
+
+/* METRICS */
+.metrics-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.met{background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;}
+.met-v{font-size:20px;font-weight:700;}
+.met-l{font-size:8px;color:var(--muted);margin-top:2px;letter-spacing:.5px;}
+
+/* SCORECOLOR */
+.sc-hi{color:var(--green);}.sc-mid{color:var(--yellow);}.sc-lo{color:var(--orange);}.sc-bad{color:var(--red);}
+.hc-hi{color:var(--green);}.hc-mid{color:var(--yellow);}.hc-lo{color:var(--orange);}
+
+.tc:hover{border-color:var(--hblue);}
+
+/* LINEAGE */
+.ln-node{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;border:1px solid var(--border);font-size:9px;margin-bottom:3px;}
+.ln-src{border-color:var(--blue);color:var(--blue);background:rgba(88,166,255,.04);}
+.ln-bz{border-color:#f59e0b;color:#f59e0b;background:rgba(245,158,11,.04);}
+.ln-sv{border-color:#94a3b8;color:#94a3b8;background:rgba(148,163,184,.04);}
+.ln-gd{border-color:var(--yellow);color:var(--yellow);background:rgba(227,179,65,.04);}
+.ln-pl{border-color:var(--purple);color:var(--purple);background:rgba(163,113,247,.04);}
+.ln-arr{text-align:center;font-size:8px;color:var(--muted);margin:1px 0;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── Simulation Data ─────────────────────────────────────────────────────────
+
+const GEN_TABLES = [
+  {name:"CUSTOMERS",  domain:"CRM",         tag:"ERP",  rows:9507,  phi:["email","ssn","phone"],    layer:null,score:null,hipaa:null},
+  {name:"ORDERS",     domain:"Sales",       tag:"ERP",  rows:50000, phi:[],                         layer:null,score:null,hipaa:null},
+  {name:"PRODUCTS",   domain:"Catalog",     tag:"ERP",  rows:491,   phi:[],                         layer:null,score:null,hipaa:null},
+  {name:"EMPLOYEES",  domain:"HR",          tag:"ERP",  rows:2000,  phi:["email","ssn"],            layer:null,score:null,hipaa:null},
+  {name:"FINANCIALS", domain:"Finance",     tag:"ERP",  rows:19577, phi:[],                         layer:null,score:null,hipaa:null},
+  {name:"INVENTORY",  domain:"Supply Chain",tag:"ERP",  rows:3000,  phi:[],                         layer:null,score:null,hipaa:null},
+  {name:"CONTRACTS",  domain:"Legal",       tag:"ERP",  rows:1000,  phi:[],                         layer:null,score:null,hipaa:null},
+  {name:"RISK_EVENTS",domain:"Risk",        tag:"ERP",  rows:5000,  phi:[],                         layer:null,score:null,hipaa:null},
+];
+
+const HC_TABLES = [
+  {name:"PATIENTS",   domain:"Demographics",     tag:"Patient",           rows:5000,  phi:["ssn","dob","email","phone","address","mrn"],       layer:null,score:null,hipaa:null},
+  {name:"ENCOUNTERS", domain:"Clinical Visits",  tag:"Encounter",         rows:20000, phi:["patient_id"],                                      layer:null,score:null,hipaa:null},
+  {name:"DIAGNOSES",  domain:"ICD-10 Conditions",tag:"Condition",         rows:35000, phi:["patient_id"],                                      layer:null,score:null,hipaa:null},
+  {name:"MEDICATIONS",domain:"Prescriptions",    tag:"MedicationRequest", rows:14587, phi:["patient_id"],                                      layer:null,score:null,hipaa:null},
+  {name:"LAB_RESULTS",domain:"Observations",     tag:"Observation",       rows:40000, phi:["patient_id"],                                      layer:null,score:null,hipaa:null},
+  {name:"PROCEDURES", domain:"CPT Procedures",   tag:"Procedure",         rows:12000, phi:["patient_id"],                                      layer:null,score:null,hipaa:null},
+  {name:"CLAIMS",     domain:"Insurance Claims", tag:"Claim",             rows:9810,  phi:["patient_id","npi"],                                layer:null,score:null,hipaa:null},
+  {name:"PROVIDERS",  domain:"Practitioner",     tag:"Practitioner",      rows:1000,  phi:["npi","dea_number","email"],                       layer:null,score:null,hipaa:null},
+];
+
+const GEN_SCORES = {
+  CUSTOMERS:{source:48,bronze:52,silver:76,gold:91,platinum:96},
+  ORDERS:{source:59,bronze:61,silver:80,gold:89,platinum:94},
+  PRODUCTS:{source:67,bronze:71,silver:83,gold:92,platinum:97},
+  EMPLOYEES:{source:51,bronze:55,silver:74,gold:88,platinum:95},
+  FINANCIALS:{source:64,bronze:68,silver:82,gold:90,platinum:96},
+  INVENTORY:{source:70,bronze:74,silver:85,gold:93,platinum:97},
+  CONTRACTS:{source:60,bronze:63,silver:78,gold:87,platinum:93},
+  RISK_EVENTS:{source:53,bronze:57,silver:75,gold:88,platinum:94},
+};
+
+const HC_AI_SCORES = {
+  PATIENTS:{source:42,bronze:46,silver:72,gold:89,platinum:95},
+  ENCOUNTERS:{source:55,bronze:58,silver:76,gold:88,platinum:94},
+  DIAGNOSES:{source:48,bronze:51,silver:74,gold:91,platinum:96},
+  MEDICATIONS:{source:50,bronze:54,silver:75,gold:89,platinum:95},
+  LAB_RESULTS:{source:57,bronze:61,silver:79,gold:92,platinum:97},
+  PROCEDURES:{source:53,bronze:57,silver:77,gold:90,platinum:95},
+  CLAIMS:{source:60,bronze:63,silver:80,gold:91,platinum:94},
+  PROVIDERS:{source:65,bronze:69,silver:82,gold:93,platinum:97},
+};
+
+const HC_HIPAA_SCORES = {
+  PATIENTS:{bronze:28,silver:71,gold:95,platinum:99},
+  ENCOUNTERS:{bronze:52,silver:79,gold:96,platinum:99},
+  DIAGNOSES:{bronze:60,silver:82,gold:97,platinum:99},
+  MEDICATIONS:{bronze:55,silver:78,gold:95,platinum:99},
+  LAB_RESULTS:{bronze:58,silver:80,gold:96,platinum:99},
+  PROCEDURES:{bronze:60,silver:81,gold:96,platinum:99},
+  CLAIMS:{bronze:50,silver:77,gold:95,platinum:99},
+  PROVIDERS:{bronze:62,silver:84,gold:97,platinum:99},
+};
+
+const GEN_FACTORS = {
+  CUSTOMERS:{completeness:58,uniqueness:72,freshness:61,cardinality:88,referential:95},
+  ORDERS:{completeness:70,uniqueness:95,freshness:75,cardinality:82,referential:72},
+  PRODUCTS:{completeness:75,uniqueness:90,freshness:80,cardinality:70,referential:98},
+  EMPLOYEES:{completeness:80,uniqueness:97,freshness:72,cardinality:65,referential:55},
+  FINANCIALS:{completeness:78,uniqueness:88,freshness:85,cardinality:75,referential:98},
+  INVENTORY:{completeness:82,uniqueness:98,freshness:68,cardinality:72,referential:78},
+  CONTRACTS:{completeness:68,uniqueness:97,freshness:74,cardinality:60,referential:80},
+  RISK_EVENTS:{completeness:62,uniqueness:98,freshness:78,cardinality:70,referential:72},
+};
+
+const HC_FACTORS = {
+  PATIENTS:{phi_completeness:55,clinical_code_validity:98,temporal_coherence:82,referential_integrity:95,deid_readiness:40},
+  ENCOUNTERS:{phi_completeness:80,clinical_code_validity:98,temporal_coherence:78,referential_integrity:82,deid_readiness:68},
+  DIAGNOSES:{phi_completeness:95,clinical_code_validity:72,temporal_coherence:82,referential_integrity:88,deid_readiness:78},
+  MEDICATIONS:{phi_completeness:78,clinical_code_validity:75,temporal_coherence:92,referential_integrity:90,deid_readiness:72},
+  LAB_RESULTS:{phi_completeness:90,clinical_code_validity:80,temporal_coherence:88,referential_integrity:92,deid_readiness:82},
+  PROCEDURES:{phi_completeness:92,clinical_code_validity:78,temporal_coherence:88,referential_integrity:90,deid_readiness:80},
+  CLAIMS:{phi_completeness:88,clinical_code_validity:85,temporal_coherence:82,referential_integrity:88,deid_readiness:75},
+  PROVIDERS:{phi_completeness:82,clinical_code_validity:82,temporal_coherence:98,referential_integrity:95,deid_readiness:85},
+};
+
+const PHI_18 = ["Names","Geographic data (sub-state)","Dates (except year)","Phone numbers",
+  "Fax numbers","Email addresses","Social Security Numbers","Medical Record Numbers",
+  "Health plan beneficiary numbers","Account numbers","Certificate/license numbers",
+  "Vehicle identifiers","Device identifiers","URLs","IP addresses",
+  "Biometric identifiers","Full-face photographs","Any unique identifying number"];
+
+const GEN_STAGES = [
+  {id:1,name:"Discovery",    desc:"Connect & profile all tables",       icon:"🔍"},
+  {id:2,name:"Assessment",   desc:"Compute AI Readiness Score",         icon:"📊"},
+  {id:3,name:"Architecture", desc:"Auto-gen medallion DDL",             icon:"🏗️"},
+  {id:4,name:"Extraction",   desc:"8-way parallel load",                icon:"⚡"},
+  {id:5,name:"Transform",    desc:"Cleanse, dedupe, SCD2",              icon:"🔄"},
+  {id:6,name:"Data Quality", desc:"7 rule types, auto-quarantine",      icon:"✅"},
+  {id:7,name:"Governance",   desc:"Purview + column lineage",           icon:"🛡️"},
+  {id:8,name:"AI Optimize",  desc:"Features & text chunking",           icon:"🤖"},
+  {id:9,name:"Monitoring",   desc:"Live WebSocket dashboards",          icon:"📡"},
+];
+
+const HC_STAGES = [
+  {id:1,name:"Discovery",    desc:"Profile clinical schema, detect 18 PHI identifiers",icon:"🔬"},
+  {id:2,name:"Assessment",   desc:"AI Readiness + HIPAA Compliance Score",             icon:"📋"},
+  {id:3,name:"Architecture", desc:"FHIR R4-aligned medallion DDL",                     icon:"🏗️"},
+  {id:4,name:"Extraction",   desc:"8-way parallel load (PHI audit log)",               icon:"⚡"},
+  {id:5,name:"Transform",    desc:"Safe Harbor de-ID · ICD/LOINC validation",          icon:"🔒"},
+  {id:6,name:"Data Quality", desc:"7 clinical DQ rules · auto-quarantine",             icon:"✅"},
+  {id:7,name:"Governance",   desc:"HIPAA audit trail · Purview · BAA compliance",      icon:"🛡️"},
+  {id:8,name:"AI Optimize",  desc:"Readmission risk · LOS · clinical NLP",             icon:"🤖"},
+  {id:9,name:"Monitoring",   desc:"Clinical quality dashboards · safety alerts",       icon:"📡"},
+];
+
+const GEN_DQ = [
+  {id:"null_check",    name:"Null Check",       icon:"∅"},
+  {id:"uniqueness",    name:"Uniqueness",       icon:"①"},
+  {id:"range",         name:"Range Check",      icon:"↔"},
+  {id:"regex_pattern", name:"Regex Pattern",    icon:".*"},
+  {id:"referential",   name:"Referential",      icon:"🔗"},
+  {id:"volume",        name:"Volume Anomaly",   icon:"▲"},
+  {id:"freshness",     name:"Freshness",        icon:"⏱"},
+];
+
+const HC_DQ = [
+  {id:"phi_completeness",   name:"PHI Completeness",  icon:"🪪"},
+  {id:"icd10_validity",     name:"ICD-10-CM Validity",icon:"🏥"},
+  {id:"lab_range",          name:"Lab Reference Range",icon:"🧪"},
+  {id:"medication_safety",  name:"Medication Safety", icon:"💊"},
+  {id:"claim_integrity",    name:"Claim Integrity",   icon:"💰"},
+  {id:"date_coherence",     name:"Date Coherence",    icon:"📅"},
+  {id:"patient_dedup_mpi",  name:"Patient Dedup (MPI)",icon:"👤"},
+];
+
+const GEN_DQ_PASS = {
+  CUSTOMERS:{null_check:88,uniqueness:95,range:100,regex_pattern:95,referential:100,volume:100,freshness:85},
+  ORDERS:{null_check:92,uniqueness:100,range:95,regex_pattern:100,referential:97,volume:100,freshness:100},
+  PRODUCTS:{null_check:90,uniqueness:97,range:100,regex_pattern:100,referential:100,volume:100,freshness:100},
+  EMPLOYEES:{null_check:95,uniqueness:100,range:100,regex_pattern:92,referential:90,volume:100,freshness:100},
+  FINANCIALS:{null_check:95,uniqueness:98,range:100,regex_pattern:97,referential:100,volume:100,freshness:100},
+  INVENTORY:{null_check:92,uniqueness:100,range:100,regex_pattern:100,referential:95,volume:100,freshness:92},
+  CONTRACTS:{null_check:90,uniqueness:100,range:100,regex_pattern:100,referential:95,volume:100,freshness:100},
+  RISK_EVENTS:{null_check:85,uniqueness:100,range:100,regex_pattern:100,referential:92,volume:100,freshness:100},
+};
+
+const HC_DQ_PASS = {
+  PATIENTS:{phi_completeness:90,icd10_validity:100,lab_range:100,medication_safety:100,claim_integrity:100,date_coherence:97,patient_dedup_mpi:95},
+  ENCOUNTERS:{phi_completeness:95,icd10_validity:100,lab_range:100,medication_safety:100,claim_integrity:100,date_coherence:95,patient_dedup_mpi:100},
+  DIAGNOSES:{phi_completeness:100,icd10_validity:85,lab_range:100,medication_safety:100,claim_integrity:100,date_coherence:95,patient_dedup_mpi:100},
+  MEDICATIONS:{phi_completeness:95,icd10_validity:88,lab_range:100,medication_safety:92,claim_integrity:100,date_coherence:100,patient_dedup_mpi:97},
+  LAB_RESULTS:{phi_completeness:100,icd10_validity:92,lab_range:90,medication_safety:100,claim_integrity:100,date_coherence:95,patient_dedup_mpi:100},
+  PROCEDURES:{phi_completeness:100,icd10_validity:90,lab_range:100,medication_safety:100,claim_integrity:100,date_coherence:97,patient_dedup_mpi:100},
+  CLAIMS:{phi_completeness:100,icd10_validity:95,lab_range:100,medication_safety:100,claim_integrity:92,date_coherence:95,patient_dedup_mpi:98},
+  PROVIDERS:{phi_completeness:95,icd10_validity:92,lab_range:100,medication_safety:100,claim_integrity:100,date_coherence:100,patient_dedup_mpi:100},
+};
+
+// ── Simulation script generator ──────────────────────────────────────────────
+function buildScript(mode) {
+  const isHC = mode === "hc";
+  const tables = isHC ? HC_TABLES : GEN_TABLES;
+  const aiScores = isHC ? HC_AI_SCORES : GEN_SCORES;
+  const hipaaScores = isHC ? HC_HIPAA_SCORES : null;
+  const tblNames = tables.map(t=>t.name);
+  const events = [];
+  let t = 0;
+
+  const log = (level, msg, stage) => events.push({at:t, type:"log", level, message:msg, stage});
+  const stageStart = (n, name) => { events.push({at:t, type:"stage_start", stage:n, name}); log("info", `▶  Stage ${n}: ${name} — started`, n); };
+  const stageProg = (n, pct, msg) => events.push({at:t, type:"stage_progress", stage:n, progress:pct, message:msg});
+  const stageDone = (n, name, dur) => { events.push({at:t, type:"stage_complete", stage:n, name, duration:dur}); log("success", `✔  Stage ${n}: ${name} — complete (${dur.toFixed(1)}s)`, n); };
+  const tblUp = (tbl, layer, score, hipaa, rp, rq) => events.push({at:t, type:"table_update", table:tbl, layer, score, hipaa_score:hipaa||null, rows_processed:rp, rows_quarantined:rq||0});
+
+  const delay = (ms) => { t += ms; };
+
+  // Stage 1 Discovery
+  stageStart(1,"Discovery");
+  if (isHC) { log("info","  Connecting to Epic EHR Oracle backend at EPIC-UAT.hospital.org:1521/EPICPRD",1); }
+  else       { log("info","  Connecting to Oracle 19c at oracle-uat.corp.internal:1521/ERPROD",1); }
+  delay(400);
+  stageProg(1,10,"Authenticated — scanning schema");
+  delay(200);
+  tables.forEach((tbl,i) => {
+    delay(180);
+    const pct = 12 + Math.round((i/tables.length)*55);
+    stageProg(1,pct,`Profiling ${tbl.name}...`);
+    const phiInfo = tbl.phi.length ? ` · PHI: [${tbl.phi.join(",")}]` : "";
+    const fhirInfo = tbl.tag !== "ERP" ? ` · FHIR:${tbl.tag}` : "";
+    log("info", `  → ${tbl.name}: ${tbl.rows.toLocaleString()} rows · ${tbl.phi.length > 0 ? "⚠️ PHI detected" : "no PHI"}${phiInfo}${fhirInfo}`, 1);
+    tblUp(tbl.name, "source", aiScores[tbl.name].source, null, tbl.rows, 0);
+  });
+  delay(300);
+  if (isHC) {
+    stageProg(1,88,"Scanning 18 HIPAA PHI identifiers...");
+    delay(250);
+    log("warn","  ⚠️  PHI DETECTED: 10/18 HIPAA identifiers across 8 FHIR resources — Safe Harbor de-identification required",1);
+    events.push({at:t, type:"phi_summary"});
+  } else {
+    stageProg(1,85,"Building FK dependency graph...");
+    delay(250);
+    log("info","  FK graph: ORDERS→CUSTOMERS, INVENTORY→PRODUCTS, CONTRACTS→CUSTOMERS",1);
+  }
+  delay(200);
+  stageProg(1,100,"Discovery complete");
+  delay(100);
+  stageDone(1,"Discovery",2.3);
+  delay(300);
+
+  // Stage 2 Assessment
+  stageStart(2,"Assessment");
+  log("info","  Computing AI Readiness Score per table" + (isHC?" + HIPAA Compliance Score":""),2);
+  delay(200);
+  tables.forEach((tbl,i) => {
+    delay(160);
+    stageProg(2, 5+Math.round((i/tables.length)*88), `Scoring ${tbl.name}...`);
+    const s = aiScores[tbl.name].source;
+    const h = isHC ? HC_HIPAA_SCORES[tbl.name].bronze : null;
+    log("info", `  ${tbl.name}: AI=${s}${isHC?` HIPAA=${h}`:""}`, 2);
+    const factors = isHC ? HC_FACTORS[tbl.name] : GEN_FACTORS[tbl.name];
+    tblUp(tbl.name,"source",s,h,tbl.rows,0);
+    events.push({at:t, type:"factors_update", table:tbl.name, factors});
+  });
+  stageProg(2,100,"Assessment complete");
+  delay(100);
+  stageDone(2,"Assessment",1.8);
+  delay(300);
+
+  // Stage 3 Architecture
+  stageStart(3,"Architecture");
+  log("info","  Auto-generating "+(isHC?"FHIR R4-aligned ":"")+"medallion DDL for all tables",3);
+  ["Bronze (Raw Landing)","Silver (Cleansed)","Gold (Aggregated)","Platinum (AI-Ready)"].forEach((l,i)=>{
+    delay(220); stageProg(3,10+i*22,`Generating ${l} DDL...`);
+    log("info",`  ${l}: DDL generated`,3);
+  });
+  delay(200);
+  stageProg(3,100,"Architecture complete");
+  delay(100);
+  stageDone(3,"Architecture",1.3);
+  delay(300);
+
+  // Stage 4 Extraction
+  stageStart(4,"Extraction");
+  log("info","  Launching 8-way parallel extraction"+(isHC?" — PHI audit log enabled":""),4);
+  delay(200);
+  tables.forEach((tbl,i) => {
+    delay(130);
+    const pct = 5+Math.round((i/tables.length)*88);
+    stageProg(4,pct,`[W-${i+1}] Loading ${tbl.name}...`);
+    const bscore = aiScores[tbl.name].bronze;
+    const bhipaa = isHC ? HC_HIPAA_SCORES[tbl.name].bronze : null;
+    const dead = Math.round(tbl.rows * 0.01);
+    log(isHC && bhipaa < 50 ? "warn" : "info",
+      `  [W-${i+1}] ${tbl.name}: ${tbl.rows.toLocaleString()} rows → Bronze`+(isHC && bhipaa<50?" ⚠️ PHI EXPOSED":""),4);
+    tblUp(tbl.name,"bronze",bscore,bhipaa,tbl.rows,dead);
+  });
+  stageProg(4,100,"All tables loaded to Bronze");
+  delay(100);
+  stageDone(4,"Extraction",3.1);
+  delay(300);
+
+  // Stage 5 Transform
+  stageStart(5,"Transform");
+  if (isHC) {
+    log("info","  HIPAA Safe Harbor de-identification: removing/masking all 18 PHI identifier categories",5);
+    ["Removing/masking 18 PHI identifier categories","Date shifting (rare conditions: year-only retained)","Geographic generalization (5-digit ZIP → 3-digit)","Age transformation (ages >89 grouped)"].forEach(s=>{
+      delay(120); log("info",`  Safe Harbor: ${s}`,5);
+    });
+  } else {
+    log("info","  Running Bronze→Silver transforms: cleanse, dedupe, SCD2, type normalization",5);
+  }
+  delay(150);
+  tables.forEach((tbl,i) => {
+    delay(240);
+    const pct = 18+Math.round((i/tables.length)*74);
+    stageProg(5,pct,`Transforming ${tbl.name} → Silver`);
+    const svscore = aiScores[tbl.name].silver;
+    const svhipaa = isHC ? HC_HIPAA_SCORES[tbl.name].silver : null;
+    const silverRows = Math.round(tbl.rows * 0.97);
+    log("success",`  ✔ ${tbl.name} → Silver: ${silverRows.toLocaleString()} rows`+(isHC?" 🔒 PHI de-identified":""),5);
+    tblUp(tbl.name,"silver",svscore,svhipaa,silverRows,0);
+  });
+  stageProg(5,100,"All tables at Silver"+(isHC?" — PHI de-identified":""));
+  delay(100);
+  stageDone(5,"Transform",2.9);
+  delay(300);
+
+  // Stage 6 DQ
+  stageStart(6,"Data Quality");
+  log("info","  Applying 7 "+(isHC?"healthcare-specific ":"")+"DQ rules",6);
+  delay(200);
+  const dqRules = isHC ? HC_DQ : GEN_DQ;
+  const dqPass = isHC ? HC_DQ_PASS : GEN_DQ_PASS;
+  tables.forEach((tbl,i) => {
+    delay(220);
+    stageProg(6,5+Math.round((i/tables.length)*86),`DQ rules: ${tbl.name}`);
+    const passes = dqPass[tbl.name] || {};
+    dqRules.forEach(r => {
+      const pr = passes[r.id] || 100;
+      if (pr < 100) log("warn",`  [${tbl.name}] ${r.name}: ${100-pr}% failed → quarantined`,6);
+    });
+    const gdscore = aiScores[tbl.name].gold;
+    const gdhipaa = isHC ? HC_HIPAA_SCORES[tbl.name].gold : null;
+    const qRows = Math.round(tbl.rows * 0.12);
+    const gRows = tbl.rows - qRows;
+    log("success",`  ✔ ${tbl.name} → Gold: ${gRows.toLocaleString()} rows`+(isHC?" ✅ HIPAA COMPLIANT":""),6);
+    tblUp(tbl.name,"gold",gdscore,gdhipaa,gRows,qRows);
+    events.push({at:t, type:"dq_result", table:tbl.name,
+      rules: Object.fromEntries(dqRules.map(r=>([r.id,{name:r.name,passed:Math.round(tbl.rows*(passes[r.id]||100)/100),failed:Math.round(tbl.rows*(100-(passes[r.id]||100))/100),pass_rate:passes[r.id]||100}])))
+    });
+  });
+  stageProg(6,100,"All tables certified Gold"+(isHC?" — HIPAA compliant":""));
+  delay(100);
+  stageDone(6,"Data Quality",2.5);
+  delay(300);
+
+  // Stage 7 Governance
+  stageStart(7,"Governance");
+  if (isHC) {
+    log("info","  HIPAA audit trail · BAA compliance · Consent registry · Minimum necessary · Purview",7);
+    ["HIPAA Audit Trail: all PHI access events logged","BAA Compliance: verified for all downstream consumers","Consent Registry: patient flags propagated","Minimum Necessary: column-level access controls"].forEach(s=>{
+      delay(200); log("info",`  ${s}`,7);
+    });
+  } else {
+    log("info","  Registering assets in Microsoft Purview catalog",7);
+  }
+  tables.forEach((tbl,i) => {
+    delay(180);
+    stageProg(7,8+Math.round((i/tables.length)*80),`Registering ${tbl.name}...`);
+    log("info",`  ${tbl.name}: Purview registered · Source→Bronze→Silver→Gold lineage tracked`,7);
+  });
+  stageProg(7,100,"Governance complete");
+  delay(100);
+  stageDone(7,"Governance",1.9);
+  delay(300);
+
+  // Stage 8 AI Optimize
+  stageStart(8,"AI Optimize");
+  log("info",isHC?"  Clinical ML features: 30-day readmission risk · LOS prediction · ICD NLP embeddings":"  Generating AI-ready features: rolling windows, embeddings, text chunking",8);
+  delay(200);
+  tables.forEach((tbl,i) => {
+    delay(200);
+    stageProg(8,5+Math.round((i/tables.length)*88),`AI features: ${tbl.name}`);
+    const plscore = aiScores[tbl.name].platinum;
+    const plhipaa = isHC ? HC_HIPAA_SCORES[tbl.name].platinum : null;
+    tblUp(tbl.name,"platinum",plscore,plhipaa,tbl.rows,0);
+    log("info",`  ${tbl.name}: feature_vector_128d · embeddings complete`,8);
+  });
+  stageProg(8,100,"Platinum layer complete — AI-ready");
+  delay(100);
+  stageDone(8,"AI Optimize",2.1);
+  delay(300);
+
+  // Stage 9 Monitoring
+  stageStart(9,"Monitoring");
+  log("info",isHC?"  Clinical quality monitoring · HIPAA access alerts · Patient safety dashboards":"  Initializing live monitoring dashboards",9);
+  delay(300);
+  stageProg(9,40,"Configuring DQ trend alerts...");
+  delay(200);
+  stageProg(9,80,"Activating schema drift detection...");
+  delay(200);
+  stageProg(9,100,"Monitoring active");
+  const totalRows = tables.reduce((a,t)=>a+t.rows,0);
+  const avgAi = Math.round(tables.reduce((a,t)=>a+aiScores[t.name].gold,0)/tables.length);
+  const avgHipaa = isHC ? Math.round(tables.reduce((a,t)=>a+HC_HIPAA_SCORES[t.name].gold,0)/tables.length) : null;
+  log("success",`  Pipeline complete: ${totalRows.toLocaleString()} records · AI score: ${avgAi}`+(avgHipaa?` · HIPAA: ${avgHipaa}`:"")+` · Status: GOLD ✅`,9);
+  delay(100);
+  stageDone(9,"Monitoring",0.9);
+  delay(200);
+  events.push({at:t, type:"pipeline_complete", total_rows:totalRows, tables_processed:tables.length, avg_ai_score:avgAi, avg_hipaa_score:avgHipaa, duration:Math.round(t/1000*10)/10});
+
+  return events;
+}
+
+// ── Helper components ────────────────────────────────────────────────────────
+
+function fmtNum(n) { return n ? n.toLocaleString() : "0"; }
+function scColor(s) {
+  if (!s) return "sc-bad";
+  return s>=85?"sc-hi":s>=70?"sc-mid":s>=50?"sc-lo":"sc-bad";
+}
+function hcColor(s) {
+  if (!s) return "";
+  return s>=90?"hc-hi":s>=70?"hc-mid":"hc-lo";
+}
+
+function Gauge({ ai, hipaa, size=108 }) {
+  const r = size/2-10; const circ = 2*Math.PI*r;
+  const aiC = ai>=85?"#3fb950":ai>=70?"#e3b341":ai>=50?"#f0883e":"#f85149";
+  const hC  = hipaa ? (hipaa>=90?"#22c55e":hipaa>=70?"#eab308":"#f97316") : null;
+  const innerR = r-9; const innerCirc = 2*Math.PI*innerR;
+  return (
+    <svg width={size} height={size}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1c2128" strokeWidth="8"/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={aiC} strokeWidth="8"
+        strokeDasharray={circ} strokeDashoffset={circ*(1-(ai||0)/100)} strokeLinecap="round"
+        style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%",transition:"stroke-dashoffset .8s"}}/>
+      {hipaa && <>
+        <circle cx={size/2} cy={size/2} r={innerR} fill="none" stroke="#1c2128" strokeWidth="7"/>
+        <circle cx={size/2} cy={size/2} r={innerR} fill="none" stroke={hC} strokeWidth="7"
+          strokeDasharray={innerCirc} strokeDashoffset={innerCirc*(1-hipaa/100)} strokeLinecap="round"
+          style={{transform:"rotate(-90deg)",transformOrigin:"50% 50%",transition:"stroke-dashoffset .8s"}}/>
+      </>}
+      <text x={size/2} y={size/2-(hipaa?7:3)} textAnchor="middle" fill={aiC} fontSize={hipaa?15:18} fontWeight="700">{ai||"—"}</text>
+      {hipaa && <text x={size/2} y={size/2+9} textAnchor="middle" fill={hC} fontSize="10" fontWeight="600">{hipaa}</text>}
+      <text x={size/2} y={size/2+(hipaa?21:15)} textAnchor="middle" fill="#8b949e" fontSize="7">{hipaa?"AI / HIPAA":"AI SCORE"}</text>
+    </svg>
+  );
+}
+
+// ── Main App ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [mode, setMode] = useState("gen"); // gen | hc
+  const isHC = mode === "hc";
+
+  const TABLES = isHC ? HC_TABLES : GEN_TABLES;
+  const STAGES = isHC ? HC_STAGES : GEN_STAGES;
+  const AI_SCORES = isHC ? HC_AI_SCORES : GEN_SCORES;
+
+  const [status, setStatus]         = useState("idle");
+  const [currentStage, setStage]    = useState(0);
+  const [stagesComplete, setDone]   = useState([]);
+  const [stageProgress, setProgress]= useState({});
+  const [tableState, setTableState] = useState({});
+  const [dqResults, setDqResults]   = useState({});
+  const [logs, setLogs]             = useState([]);
+  const [phiSummary, setPhiSummary] = useState({});
+  const [pipelineResult, setResult] = useState(null);
+  const [factorsMap, setFactors]    = useState({});
+  const [selTable, setSelTable]     = useState(TABLES[0].name);
+  const timerRef = useRef([]);
+
+  const reset = useCallback(() => {
+    timerRef.current.forEach(clearTimeout);
+    timerRef.current = [];
+    setStatus("idle"); setStage(0); setDone([]); setProgress({});
+    setTableState({}); setDqResults({}); setLogs([]); setPhiSummary({}); setResult(null); setFactors({});
+  }, []);
+
+  // Reset when mode changes
+  useEffect(() => { reset(); setSelTable(TABLES[0].name); }, [mode]);
+
+  const runPipeline = useCallback(() => {
+    reset();
+    setStatus("running");
+    const script = buildScript(mode);
+
+    script.forEach(ev => {
+      const tid = setTimeout(() => {
+        if (ev.type === "log") {
+          setLogs(p => [...p.slice(-300), {ts: new Date().toLocaleTimeString("en",{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"}), ...ev}]);
+        } else if (ev.type === "stage_start") {
+          setStage(ev.stage);
+        } else if (ev.type === "stage_progress") {
+          setProgress(p => ({...p, [ev.stage]: ev.progress}));
+        } else if (ev.type === "stage_complete") {
+          setDone(p => [...p, ev.stage]);
+          setProgress(p => ({...p, [ev.stage]: 100}));
+        } else if (ev.type === "table_update") {
+          setTableState(p => ({...p, [ev.table]: {
+            layer:ev.layer, score:ev.score, hipaa_score:ev.hipaa_score,
+            rows_processed:ev.rows_processed, rows_quarantined:ev.rows_quarantined||0,
+          }}));
+        } else if (ev.type === "dq_result") {
+          setDqResults(p => ({...p, [ev.table]: ev.rules}));
+        } else if (ev.type === "phi_summary") {
+          const phi = {};
+          PHI_18.forEach((id, i) => { phi[id] = i < 10; });
+          setPhiSummary(phi);
+        } else if (ev.type === "factors_update") {
+          setFactors(p => ({...p, [ev.table]: ev.factors}));
+        } else if (ev.type === "pipeline_complete") {
+          setStatus("complete"); setResult(ev);
+        }
+      }, ev.at);
+      timerRef.current.push(tid);
+    });
+  }, [mode, reset]);
+
+  // Derived
+  const tblList = TABLES.map(t => ({...t, ...(tableState[t.name]||{})}));
+  const totalRows = tblList.reduce((a,t)=>a+(t.rows_processed||0),0);
+  const totalQ    = tblList.reduce((a,t)=>a+(t.rows_quarantined||0),0);
+  const avgAi = (() => { const a=tblList.filter(t=>t.score); return a.length?Math.round(a.reduce((s,t)=>s+(t.score||0),0)/a.length):null; })();
+  const avgHipaa = (() => { const a=tblList.filter(t=>t.hipaa_score); return a.length?Math.round(a.reduce((s,t)=>s+(t.hipaa_score||0),0)/a.length):null; })();
+  const phiFound = Object.values(phiSummary).filter(Boolean).length;
+
+  const sel = tableState[selTable] || {};
+  const selFactors = factorsMap[selTable] || {};
+  const selDQ = dqResults[selTable] || {};
+  const dqRules = isHC ? HC_DQ : GEN_DQ;
+  const running = status === "running";
+
+  const layerIdx = {source:0,bronze:1,silver:2,gold:3,platinum:4};
+  const curLayerIdx = layerIdx[sel.layer] ?? -1;
+
+  const MEDAL_DEFS = [
+    {id:"bronze",  label:"Bronze",   sub:isHC?"Raw PHI Landing Zone":"Raw Landing",          cCls:"bronze-t",bfCls:"#b45309", aCls:"bronze-a", hipaaTag:["hbad","PHI EXPOSED","hwarn","RESTRICTED"]},
+    {id:"silver",  label:"Silver",   sub:isHC?"HIPAA Safe Harbor De-ID":"Cleansed / SCD2",   cCls:"silver-t",bfCls:"#94a3b8", aCls:"silver-a", hipaaTag:["hwarn","DE-IDENTIFIED"]},
+    {id:"gold",    label:"Gold",     sub:isHC?"FHIR R4 Validated + DQ":"Aggregated / DQ",    cCls:"gold-t",  bfCls:"#e3b341", aCls:"gold-a",   hipaaTag:["hok","COMPLIANT"]},
+    {id:"platinum",label:"Platinum", sub:isHC?"ML-Ready / Readmission Risk":"AI-Ready / ML", cCls:"plat-t",  bfCls:"#a855f7", aCls:"plat-a",   hipaaTag:["hok","COMPLIANT"]},
+  ];
+
+  const medalStatus = {bronze:["st-exp","⚠️ PHI Exposed"],silver:["st-deid","🔒 De-identified"],gold:["st-comp","✅ Compliant"],platinum:["st-ai","🤖 AI-Ready"]};
+
+  const sbarFactors = isHC ? [
+    {k:"phi_completeness",    lbl:"PHI Completeness", w:25, col:"#6366f1"},
+    {k:"clinical_code_validity",lbl:"Code Validity",  w:25, col:isHC?"#0ea5e9":"#00d4aa"},
+    {k:"temporal_coherence",  lbl:"Temporal",         w:20, col:"#06b6d4"},
+    {k:"referential_integrity",lbl:"Referential",     w:15, col:"#22c55e"},
+    {k:"deid_readiness",      lbl:"De-ID Readiness",  w:15, col:"#a855f7"},
+  ] : [
+    {k:"completeness",  lbl:"Completeness",  w:30, col:"#3fb950"},
+    {k:"uniqueness",    lbl:"Uniqueness",    w:20, col:"#00d4aa"},
+    {k:"freshness",     lbl:"Freshness",     w:20, col:"#58a6ff"},
+    {k:"cardinality",   lbl:"Cardinality",   w:15, col:"#e3b341"},
+    {k:"referential",   lbl:"Referential",   w:15, col:"#a371f7"},
+  ];
+
+  const accentColor = isHC ? "var(--hblue)" : "var(--teal)";
+
+  const logRef = useRef(null);
+  useEffect(()=>{ if(logRef.current) logRef.current.scrollTop=logRef.current.scrollHeight; },[logs]);
+
+  return (
+    <div>
+      {/* NAV */}
+      <div className="nav">
+        <div className="nav-logo">
+          <span className="nav-star">★</span>
+          <div>
+            <div className="nav-title">AI READY DATA</div>
+            <div className="nav-sub">9-Stage Automated Pipeline POC</div>
+          </div>
+        </div>
+        <div className="nav-tabs">
+          <button className={`nav-tab ${mode==="gen"?"active-gen":""}`} onClick={()=>setMode("gen")}>
+            🏢 Enterprise ERP
+          </button>
+          <button className={`nav-tab ${mode==="hc"?"active-hc":""}`} onClick={()=>setMode("hc")}>
+            🏥 Healthcare / HIPAA
+          </button>
+        </div>
+        <div className="nav-right">
+          {avgAi && <div style={{fontSize:10,color:"var(--muted)"}}>
+            AI: <span style={{color:accentColor,fontWeight:700}}>{avgAi}</span>
+            {avgHipaa && <> · HIPAA: <span style={{color:"var(--hipaa)",fontWeight:700}}>{avgHipaa}</span></>}
+          </div>}
+          <div className={`badge ${running?isHC?"badge-hcrun":"badge-run":status==="complete"?"badge-done":"badge-idle"}`}>
+            {running && <div className="dot"/>}
+            {status==="idle"?"IDLE":running?"RUNNING":isHC?"HIPAA COMPLIANT ✅":"COMPLETE ✅"}
+          </div>
+        </div>
+      </div>
+
+      {/* HERO (idle only) */}
+      {status === "idle" && (
+        <div className="hero">
+          <div className="hero-title">
+            {isHC ? (<>Epic EHR → <span className="hero-hc-accent">HIPAA-Compliant</span> OneLake</>) : (<>Oracle Legacy → <span className="hero-accent">AI-Ready</span> OneLake</>)}
+          </div>
+          <div className="hero-sub">
+            {isHC
+              ? "9-stage pipeline for clinical EHR data. Watch PHI de-identification and clinical data quality rise from Bronze (PHI Exposed) → Silver (De-identified) → Gold (HIPAA Compliant) → Platinum (AI-Ready)."
+              : "9-stage automated pipeline: Oracle legacy databases → Microsoft Fabric OneLake. Watch data quality rise from Bronze → Silver → Gold → Platinum in real time."}
+          </div>
+          <div className="hero-stats">
+            <div className="hstat">
+              <div className={`hstat-val ${isHC?"hstat-hc-val":""}`}>{isHC?"137,397":"90,575"}</div>
+              <div className="hstat-lbl">{isHC?"CLINICAL RECORDS":"ENTERPRISE ROWS"}</div>
+            </div>
+            <div className="hstat">
+              <div className={`hstat-val ${isHC?"hstat-hc-val":""}`}>8</div>
+              <div className="hstat-lbl">{isHC?"FHIR RESOURCES":"ORACLE TABLES"}</div>
+            </div>
+            <div className="hstat">
+              <div className={`hstat-val ${isHC?"hstat-hc-val":""}`}>{isHC?"18":"7"}</div>
+              <div className="hstat-lbl">{isHC?"PHI IDENTIFIERS":"DQ RULE TYPES"}</div>
+            </div>
+            <div className="hstat">
+              <div className={`hstat-val ${isHC?"hstat-hc-val":""}`}>~{isHC?"24":"22"}s</div>
+              <div className="hstat-lbl">PIPELINE RUNTIME</div>
+            </div>
+          </div>
+          <div className="hero-btns">
+            <button className={`btn ${isHC?"btn-blue":"btn-teal"}`} onClick={runPipeline}>
+              ▶ Run {isHC?"Healthcare":"Enterprise"} Pipeline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN LAYOUT */}
+      <div className="main-layout" style={{borderTop:`1px solid var(--border)`}}>
+        {/* SIDEBAR */}
+        <div className="sidebar">
+          <div className="sec-hdr">{isHC?"Clinical":"Enterprise"} Pipeline Stages</div>
+          {STAGES.map(s => {
+            const done = stagesComplete.includes(s.id);
+            const active = currentStage===s.id && !done;
+            const prog = stageProgress[s.id] || 0;
+            return (
+              <div key={s.id} className={`stage-row ${done?"s-done":active?`s-active ${mode}`:"s-pend"}`}>
+                <div className={`snum ${done?"sn-d":active?isHC?"sn-ah":"sn-ag":"sn-p"}`}>{done?"✓":s.id}</div>
+                <div style={{flex:1}}>
+                  <div className="sname">{s.icon} {s.name}</div>
+                  <div className="sdesc">{s.desc}</div>
+                  {(active||done) && <div className="spbar"><div className={`spfill ${done?"spf-d":isHC?"spf-h":"spf-g"}`} style={{width:`${done?100:prog}%`}}/></div>}
+                </div>
+              </div>
+            );
+          })}
+          <div style={{padding:"10px 12px",display:"flex",flexDirection:"column",gap:7}}>
+            <button className={`btn ${isHC?"btn-blue":"btn-teal"}`} onClick={runPipeline} disabled={running}>
+              {running?"▶ Running...":"▶ Run Pipeline"}
+            </button>
+            <button className="btn btn-ghost" onClick={reset} disabled={running}>↺ Reset</button>
+          </div>
+        </div>
+
+        {/* CENTER */}
+        <div className="center">
+          {/* Complete banner */}
+          {status==="complete" && pipelineResult && (
+            <div className="done-banner">
+              <span style={{fontSize:22}}>{isHC?"✅":"🎉"}</span>
+              <div>
+                <div className="done-title">Pipeline Complete — All Tables at {isHC?"Gold (HIPAA Compliant)":"Gold / Platinum"}</div>
+                <div className="done-sub">
+                  {fmtNum(pipelineResult.total_rows)} records · {pipelineResult.tables_processed} tables ·
+                  AI: {pipelineResult.avg_ai_score}{pipelineResult.avg_hipaa_score?` · HIPAA: ${pipelineResult.avg_hipaa_score}`:""} ·
+                  {pipelineResult.duration}s
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Metrics */}
+          {totalRows>0 && (
+            <div className="metrics-row">
+              <div className="met"><div className={`met-v ${scColor(avgAi)}`} style={{color:accentColor}}>{avgAi||"—"}</div><div className="met-l">AVG AI SCORE</div></div>
+              {isHC && <div className="met"><div className="met-v" style={{color:"var(--hipaa)"}}>{avgHipaa||"—"}</div><div className="met-l">HIPAA SCORE</div></div>}
+              {isHC && <div className="met"><div className="met-v" style={{color:"#ef4444",fontSize:16,paddingTop:3}}>{phiFound}/18</div><div className="met-l">PHI FOUND</div></div>}
+              {!isHC && <div className="met"><div className="met-v" style={{color:"var(--teal)"}}>{stagesComplete.length}/9</div><div className="met-l">STAGES DONE</div></div>}
+              <div className="met"><div className="met-v" style={{color:"var(--teal)",fontSize:fmtNum(totalRows).length>7?15:20}}>{fmtNum(totalRows)}</div><div className="met-l">RECORDS</div></div>
+              <div className="met"><div className="met-v" style={{color:"var(--orange)"}}>{fmtNum(totalQ)}</div><div className="met-l">QUARANTINED</div></div>
+            </div>
+          )}
+
+          {/* Medallion */}
+          {tblList.some(t=>t.layer) && (
+            <div className="medal-row">
+              {MEDAL_DEFS.map(m => {
+                const here = tblList.filter(t=>t.layer===m.id);
+                const pastHere = tblList.filter(t=>["bronze","silver","gold","platinum"].indexOf(t.layer)>=["bronze","silver","gold","platinum"].indexOf(m.id)&&t.layer);
+                const avgA = here.length?Math.round(here.reduce((s,t)=>s+(t.score||0),0)/here.length):null;
+                const avgH = here.length&&isHC?Math.round(here.reduce((s,t)=>s+(t.hipaa_score||0),0)/here.length):null;
+                const isA = pastHere.length>0;
+                const st = medalStatus[m.id];
+                return (
+                  <div key={m.id} className={`mc ${isA?m.aCls:""}`}>
+                    <div className="mc-top">
+                      <div className={`mc-lbl ${m.cCls}`}>{m.label}</div>
+                      {isA && isHC && <div className={`mc-hipaa ${m.hipaaTag[0]}`}>{m.hipaaTag[1]}</div>}
+                    </div>
+                    <div className="mc-sub">{m.sub}</div>
+                    <div className="mc-scores">
+                      <div><div className={`mc-snum ${scColor(avgA)}`}>{avgA||"—"}</div><div className="mc-slbl">AI</div></div>
+                      {isHC && <div><div className={`mc-snum ${hcColor(avgH)}`}>{avgH||"—"}</div><div className="mc-slbl">HIPAA</div></div>}
+                    </div>
+                    <div className="mc-tables">{here.length}/{tblList.length} tables current</div>
+                    {st && <div className={`mc-status ${st[0]}`}>{st[1]}</div>}
+                    <div className="mc-bar"><div className="mc-bar-fill" style={{width:`${isA?(avgA||0):0}%`,background:m.bfCls}}/></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Table grid */}
+          {tblList.some(t=>t.layer) && (
+            <div className="tbl-grid">
+              {tblList.map(tbl => {
+                const layer = tbl.layer;
+                const lbMap = {source:"lb-src",bronze:"lb-bz",silver:"lb-sv",gold:"lb-gd",platinum:"lb-pl"};
+                return (
+                  <div key={tbl.name} className="tc" onClick={()=>setSelTable(tbl.name)} style={{cursor:"pointer",outline:selTable===tbl.name?`1px solid ${accentColor}`:"none"}}>
+                    <div className="tc-top">
+                      <div className="tc-name">{tbl.name}</div>
+                      <div className={`tc-tag ${isHC?"tag-fhir":"tag-erp"}`}>{tbl.tag}</div>
+                    </div>
+                    <div className="tc-dom">{tbl.domain}</div>
+                    <div className={`lbadge ${layer?lbMap[layer]:"lb-none"}`}>{layer?layer.toUpperCase():"PENDING"}</div>
+                    <div className="sc-pair">
+                      <div className={`tc-ai ${scColor(tbl.score)}`}>{tbl.score||"—"}</div>
+                      {isHC && tbl.hipaa_score && <div className={`tc-hipaa ${hcColor(tbl.hipaa_score)}`}>/{tbl.hipaa_score}</div>}
+                    </div>
+                    {tbl.rows_quarantined>0 && <div className="tc-rows" style={{color:"#ef4444"}}>{fmtNum(tbl.rows_quarantined)} quarantined</div>}
+                    <div className="tc-rows">{fmtNum(tbl.rows_processed||tbl.rows)} rows</div>
+                    {tbl.phi&&tbl.phi.length>0 && <div className="phi-tag">🔒 {tbl.phi.length} PHI cols</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Log */}
+          <div style={{display:"flex",alignItems:"center",padding:"5px 12px",borderBottom:"1px solid var(--border)",background:"var(--bg2)",gap:8,borderTop:"1px solid var(--border)"}}>
+            <span style={{fontSize:9,color:"var(--muted)",letterSpacing:2,fontWeight:700}}>PIPELINE LOG</span>
+            {running && <span style={{width:5,height:5,borderRadius:"50%",background:accentColor,animation:"pulse 1.2s infinite",display:"inline-block"}}/>}
+            <span style={{fontSize:9,color:"var(--muted)"}}>{logs.length} events</span>
+          </div>
+          <div className="log-area" ref={logRef}>
+            {logs.length===0 && <div style={{color:"var(--muted)",textAlign:"center",paddingTop:14}}>
+              {status==="idle"?"Click ▶ Run Pipeline to begin":"Pipeline logs will stream here..."}
+            </div>}
+            {logs.map((l,i)=>(
+              <div key={i} className="log-line">
+                <span className="l-ts">{l.ts}</span>
+                <span className={`l-${l.level}`}>{l.message}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* RIGHT PANEL */}
+        <div className="right">
+          {/* Score gauge */}
+          <div className="rp-sec">
+            <div className="rp-lbl">AI{isHC?" + HIPAA":""} Scores</div>
+            <select value={selTable} onChange={e=>setSelTable(e.target.value)} className="rp-sel">
+              {TABLES.map(t=><option key={t.name} value={t.name}>{t.name}{isHC&&t.tag?` (${t.tag})`:""}</option>)}
+            </select>
+            <div className="gauge-wrap"><Gauge ai={sel.score} hipaa={isHC?sel.hipaa_score:null} size={108}/></div>
+            {Object.keys(selFactors).length>0 && sbarFactors.map(({k,lbl,w,col})=>{
+              const v = selFactors[k]||0;
+              return (
+                <div className="sbar-row" key={k}>
+                  <div className="sbar-lbl">{lbl} <span style={{color:"#8b949e"}}>{w}%</span></div>
+                  <div className="sbar-track"><div className="sbar-fill" style={{width:`${v}%`,background:col}}/></div>
+                  <div className="sbar-val" style={{color:col}}>{v}</div>
+                </div>
+              );
+            })}
+            {!Object.keys(selFactors).length && <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>Run pipeline to compute scores</div>}
+          </div>
+
+          {/* DQ Rules */}
+          <div className="rp-sec">
+            <div className="rp-lbl">{isHC?"Clinical ":""}DQ Rules</div>
+            <select value={selTable} onChange={e=>setSelTable(e.target.value)} className="rp-sel">
+              {TABLES.map(t=><option key={t.name} value={t.name}>{t.name}</option>)}
+            </select>
+            {Object.keys(selDQ).length>0 ? dqRules.map(r=>{
+              const rule = selDQ[r.id]||{};
+              const pr = rule.pass_rate||0;
+              const bCls = pr>=95?"dqp":pr>=80?"dqw":"dqf";
+              return (
+                <div key={r.id} className="dq-row">
+                  <div className="dq-ico">{r.icon}</div>
+                  <div className="dq-inf">
+                    <div className="dq-nm">{r.name}</div>
+                    <div className="dq-rt">{fmtNum(rule.passed)} pass · {fmtNum(rule.failed)} fail</div>
+                  </div>
+                  <div className={`dq-b ${bCls}`}>{pr}%</div>
+                </div>
+              );
+            }) : <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>DQ results appear after Stage 6</div>}
+          </div>
+
+          {/* PHI panel (HC only) or Lineage (gen) */}
+          {isHC ? (
+            <div className="rp-sec">
+              <div className="rp-lbl">18 HIPAA PHI Identifiers <span style={{color:phiFound>0?"#ef4444":"var(--muted)",marginLeft:4}}>{phiFound>0?`${phiFound} FOUND`:""}</span></div>
+              {Object.keys(phiSummary).length>0 ? (
+                <div className="phi-grid">
+                  {PHI_18.map(id=>{
+                    const found = phiSummary[id]||false;
+                    return (
+                      <div key={id} className={`phi-item ${found?"phi-y":"phi-n"}`}>
+                        <div className={`phi-d ${found?"pd-y":"pd-n"}`}/>
+                        <span style={{fontSize:8}}>{id}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <div style={{color:"var(--muted)",fontSize:9,textAlign:"center",padding:"8px 0"}}>PHI scan runs in Stage 1</div>}
+            </div>
+          ) : (
+            <div className="rp-sec">
+              <div className="rp-lbl">Data Lineage</div>
+              <select value={selTable} onChange={e=>setSelTable(e.target.value)} className="rp-sel">
+                {TABLES.map(t=><option key={t.name} value={t.name}>{t.name}</option>)}
+              </select>
+              {[
+                {node:`Oracle Source / ${selTable}`,cls:"ln-src",idx:0,xf:null},
+                {node:`Bronze / ${selTable}`,       cls:"ln-bz", idx:1,xf:"8-way parallel extract"},
+                {node:`Silver / ${selTable}`,       cls:"ln-sv", idx:2,xf:"Cleanse + SCD2"},
+                {node:`Gold / ${selTable}`,         cls:"ln-gd", idx:3,xf:"DQ rules + Aggregate"},
+                {node:`Platinum / ${selTable}`,     cls:"ln-pl", idx:4,xf:"Feature eng + Embeddings"},
+              ].map((item)=>{
+                const reached = curLayerIdx >= item.idx-1 || item.idx===0;
+                return (
+                  <React.Fragment key={item.node}>
+                    {item.xf && <div className="ln-arr"><span style={{color:reached?"var(--teal)":"var(--border)"}}>↓</span><div style={{fontSize:8,color:reached?"var(--muted)":"var(--border)"}}>{item.xf}</div></div>}
+                    <div className={`ln-node ${item.cls}`} style={{opacity:reached?1:0.25}}>
+                      <span>▸</span><span style={{flex:1,fontSize:9}}>{item.node}</span>
+                      {sel.layer===["source","bronze","silver","gold","platinum"][item.idx] && <span style={{fontSize:7,color:"#22c55e"}}>●LIVE</span>}
+                    </div>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

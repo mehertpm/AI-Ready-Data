@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Ready Data — Banking Pipeline</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+:root{
+  --bg:#04080f;--bg2:#080e1a;--bg3:#0c1525;--bg4:#111e33;
+  --gold:#f59e0b;--green:#10b981;--red:#ef4444;--orange:#f97316;
+  --blue:#3b82f6;--purple:#8b5cf6;--teal:#06b6d4;
+  --text:#e2e8f0;--muted:#64748b;--border:#1e2d47;
+  --bronze:#cd7f32;--silver:#94a3b8;--gold-layer:#f59e0b;--platinum:#e2e8f0;
+  --compliance:#7c3aed;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'SF Mono',Monaco,monospace;font-size:13px;min-height:100vh;overflow-x:hidden}
+.app{display:grid;grid-template-columns:220px 1fr 340px;grid-template-rows:56px 1fr;height:100vh}
+
+/* Header */
+.header{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;
+  background:linear-gradient(90deg,#04080f,#06101c);border-bottom:1px solid var(--border)}
+.header-icon{font-size:22px}
+.header-title{font-size:16px;font-weight:700;color:#fff;letter-spacing:.5px}
+.header-sub{font-size:11px;color:var(--muted);margin-left:4px}
+.header-badges{display:flex;gap:8px;margin-left:auto}
+.badge{padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;letter-spacing:.5px}
+.badge-aml{background:#7c3aed22;color:#a78bfa;border:1px solid #7c3aed55}
+.badge-pci{background:#0284c722;color:#38bdf8;border:1px solid #0284c755}
+.badge-kyc{background:#05966922;color:#34d399;border:1px solid #05966955}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.status-dot.running{background:var(--green);animation:pulse 1s infinite}
+.status-dot.complete{background:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Sidebar */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);padding:12px 0;overflow-y:auto}
+.sidebar-label{padding:8px 16px 4px;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.stage-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:default;transition:.15s}
+.stage-item.active{background:#1e3a5f33;border-left:2px solid var(--blue)}
+.stage-item.done{border-left:2px solid var(--green)}
+.stage-item.pending{border-left:2px solid transparent;opacity:.5}
+.stage-num{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.stage-num.active{background:var(--blue);color:#fff}
+.stage-num.done{background:var(--green);color:#fff}
+.stage-num.pending{background:var(--bg4);color:var(--muted)}
+.stage-name{font-size:12px}
+
+/* Main */
+.main{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px}
+
+/* Score overview */
+.score-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.score-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.score-card-val{font-size:28px;font-weight:700}
+.score-card-label{font-size:10px;color:var(--muted);margin-top:2px}
+.score-bronze{color:var(--bronze)}
+.score-silver{color:var(--silver)}
+.score-gold{color:var(--gold-layer)}
+.score-platinum{color:var(--platinum)}
+
+/* Table grid */
+.section-title{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px}
+.table-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.tbl-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;transition:.15s}
+.tbl-card:hover{border-color:var(--blue)}
+.tbl-card.selected{border-color:var(--gold-layer);background:var(--bg3)}
+.tbl-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.tbl-name{font-size:13px;font-weight:700;color:#fff}
+.tbl-domain{font-size:10px;color:var(--muted);margin-top:2px}
+.layer-badge{padding:3px 8px;border-radius:6px;font-size:10px;font-weight:700}
+.layer-source{background:#1e293b;color:var(--muted)}
+.layer-bronze{background:#78350f22;color:var(--bronze);border:1px solid var(--bronze)44}
+.layer-silver{background:#1e293b22;color:var(--silver);border:1px solid var(--silver)44}
+.layer-gold{background:#78350f22;color:var(--gold-layer);border:1px solid var(--gold-layer)44}
+.layer-platinum{background:#1e293b22;color:var(--platinum);border:1px solid var(--platinum)44}
+
+.score-bars{display:flex;flex-direction:column;gap:6px}
+.score-bar-row{display:flex;align-items:center;gap:8px}
+.score-bar-label{font-size:10px;color:var(--muted);width:90px;flex-shrink:0}
+.score-bar-track{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.score-bar-fill{height:100%;border-radius:3px;transition:width .6s ease}
+.score-bar-val{font-size:10px;width:32px;text-align:right}
+.score-ai{background:linear-gradient(90deg,var(--blue),var(--teal))}
+.score-comp{background:linear-gradient(90deg,var(--purple),#a78bfa)}
+
+.tbl-rows{font-size:10px;color:var(--muted);margin-top:8px}
+.tbl-reg{font-size:9px;color:var(--purple);opacity:.8;margin-top:2px}
+
+/* Right panel */
+.right-panel{background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border)}
+.panel-tab{flex:1;padding:10px 4px;text-align:center;font-size:11px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;transition:.15s}
+.panel-tab.active{color:var(--gold-layer);border-bottom-color:var(--gold-layer)}
+.panel-body{flex:1;overflow-y:auto;padding:14px}
+
+/* Gauge */
+.gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0 14px}
+.gauge-title{font-size:11px;color:var(--muted)}
+
+/* DQ Rules */
+.dq-rule{margin-bottom:10px;padding:10px;background:var(--bg3);border-radius:8px}
+.dq-rule-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.dq-rule-label{font-size:12px;font-weight:600}
+.dq-status{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700}
+.dq-pass{background:#05966922;color:#34d399}
+.dq-warn{background:#d9770622;color:#fb923c}
+.dq-fail{background:#ef444422;color:#f87171}
+.dq-desc{font-size:10px;color:var(--muted);margin-bottom:6px}
+.dq-bar{height:5px;background:var(--bg4);border-radius:3px;overflow:hidden;margin-top:4px}
+.dq-bar-fill{height:100%;border-radius:3px;transition:width .5s}
+.dq-bar-fill.pass{background:var(--green)}
+.dq-bar-fill.warn{background:var(--orange)}
+.dq-bar-fill.fail{background:var(--red)}
+.dq-stats{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-top:4px}
+
+/* Improvement paths */
+.improve-section{margin-bottom:16px}
+.improve-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 10px;border-radius:8px}
+.improve-bronze{background:#78350f22;border:1px solid var(--bronze)44}
+.improve-silver{background:#1e293b22;border:1px solid var(--silver)44}
+.improve-gold{background:#78350f22;border:1px solid var(--gold-layer)44}
+.improve-arrow{font-size:12px;color:var(--muted)}
+.improve-title{font-size:12px;font-weight:700}
+.improve-bronze .improve-title{color:var(--silver)}
+.improve-silver .improve-title{color:var(--gold-layer)}
+.improve-gold .improve-title{color:var(--platinum)}
+.improve-step{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
+.improve-step:last-child{border-bottom:none}
+.improve-num{width:18px;height:18px;border-radius:50%;background:var(--bg4);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted);flex-shrink:0;margin-top:1px}
+.improve-text{font-size:11px;color:var(--text);line-height:1.5}
+.current-layer-banner{padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:12px}
+.layer-banner-source{background:#1e293b33;border:1px solid var(--muted)33}
+.layer-banner-bronze{background:#78350f22;border:1px solid var(--bronze)66}
+.layer-banner-silver{background:#1e293b44;border:1px solid var(--silver)66}
+.layer-banner-gold{background:#78350f33;border:1px solid var(--gold-layer)66}
+.layer-banner-platinum{background:#1e293b44;border:1px solid var(--platinum)66}
+.layer-banner-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+
+/* Lineage */
+.lineage-item{margin-bottom:12px;padding:10px;background:var(--bg3);border-radius:8px}
+.lineage-label{font-size:10px;color:var(--muted);margin-bottom:6px}
+.lineage-flow{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.lineage-node{padding:3px 8px;border-radius:4px;font-size:10px;white-space:nowrap}
+.lineage-arrow{color:var(--muted);font-size:12px}
+.ln-source{background:#1e293b;color:var(--muted)}
+.ln-bronze{background:#78350f22;color:var(--bronze)}
+.ln-silver{background:#1e293b44;color:var(--silver)}
+.ln-gold{background:#78350f22;color:var(--gold-layer)}
+
+/* Log feed */
+.log-feed{background:var(--bg);border-top:1px solid var(--border);height:160px;overflow-y:auto;padding:8px 12px;font-size:11px}
+.log-entry{padding:2px 0;line-height:1.5}
+.log-INFO{color:#94a3b8}
+.log-WARN{color:var(--orange)}
+.log-ERROR{color:var(--red)}
+.log-SUCCESS{color:var(--green)}
+
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:20px;padding:40px;text-align:center}
+.welcome h2{font-size:22px;color:#fff}
+.welcome p{color:var(--muted);max-width:440px;line-height:1.7}
+.run-btn{padding:12px 36px;border-radius:10px;border:none;cursor:pointer;font-size:14px;font-weight:700;
+  background:linear-gradient(135deg,var(--blue),var(--purple));color:#fff;transition:.2s;letter-spacing:.5px}
+.run-btn:hover{transform:translateY(-1px);box-shadow:0 4px 20px #3b82f666}
+.run-btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:400px}
+.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.stat-val{font-size:20px;font-weight:700;color:var(--blue)}
+.stat-lbl{font-size:10px;color:var(--muted);margin-top:2px}
+
+/* Compliance panel items */
+.comp-item{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
+.comp-item:last-child{border-bottom:none}
+.comp-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.comp-dot.found{background:var(--orange)}
+.comp-dot.clear{background:var(--bg4)}
+.comp-name{font-size:11px}
+.comp-found{color:var(--orange)}
+.comp-clear{color:var(--muted)}
+
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.no-select{font-size:13px;color:var(--muted);text-align:center;padding-top:40px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback} = React;
+
+const LAYER_ORDER = ["source","bronze","silver","gold","platinum"];
+const LAYER_LABELS = {source:"Source",bronze:"Bronze",silver:"Silver",gold:"Gold",platinum:"Platinum"};
+
+function layerClass(l){ return l ? `layer-${l}` : "layer-source"; }
+function scoreColor(s){
+  if(!s) return "var(--muted)";
+  if(s>=94) return "var(--platinum)";
+  if(s>=85) return "var(--gold-layer)";
+  if(s>=70) return "var(--silver)";
+  if(s>=50) return "var(--bronze)";
+  return "var(--red)";
+}
+
+function Gauge({aiScore, compScore}){
+  const ai = aiScore||0, co = compScore||0;
+  const R=72, cx=90, cy=90, stroke=10;
+  const circ = 2*Math.PI*R;
+  const aiDash = (ai/100)*circ*0.75;
+  const coDash = (co/100)*circ*0.75;
+  const r2=55;
+  const circ2=2*Math.PI*r2;
+  const coDash2=(co/100)*circ2*0.75;
+  return (
+    <div className="gauge-wrap">
+      <svg width="180" height="150" viewBox="0 0 180 150">
+        <defs>
+          <linearGradient id="gAI" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#3b82f6"/><stop offset="100%" stopColor="#06b6d4"/>
+          </linearGradient>
+          <linearGradient id="gCO" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#8b5cf6"/><stop offset="100%" stopColor="#a78bfa"/>
+          </linearGradient>
+        </defs>
+        {/* Outer track - AI */}
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke="#1e293b" strokeWidth={stroke}
+          strokeDasharray={`${circ*0.75} ${circ*0.25}`}
+          strokeDashoffset={circ*0.125} strokeLinecap="round" transform={`rotate(135 ${cx} ${cy})`}/>
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke="url(#gAI)" strokeWidth={stroke}
+          strokeDasharray={`${aiDash} ${circ}`}
+          strokeDashoffset={circ*0.125} strokeLinecap="round" transform={`rotate(135 ${cx} ${cy})`}
+          style={{transition:"stroke-dasharray .6s ease"}}/>
+        {/* Inner track - Compliance */}
+        <circle cx={cx} cy={cy} r={r2} fill="none" stroke="#1e293b" strokeWidth={stroke-2}
+          strokeDasharray={`${circ2*0.75} ${circ2*0.25}`}
+          strokeDashoffset={circ2*0.125} strokeLinecap="round" transform={`rotate(135 ${cx} ${cy})`}/>
+        <circle cx={cx} cy={cy} r={r2} fill="none" stroke="url(#gCO)" strokeWidth={stroke-2}
+          strokeDasharray={`${coDash2} ${circ2}`}
+          strokeDashoffset={circ2*0.125} strokeLinecap="round" transform={`rotate(135 ${cx} ${cy})`}
+          style={{transition:"stroke-dasharray .6s ease"}}/>
+        {/* Center text */}
+        <text x={cx} y={cy-6} textAnchor="middle" fill="#fff" fontSize="22" fontWeight="700">{ai}</text>
+        <text x={cx} y={cy+12} textAnchor="middle" fill="#a78bfa" fontSize="13" fontWeight="600">{co}</text>
+        <text x={cx} y={cy+26} textAnchor="middle" fill="#64748b" fontSize="9">COMPLIANCE</text>
+      </svg>
+      <div style={{display:"flex",gap:16}}>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"#3b82f6"}}/>
+          <span style={{fontSize:10,color:"var(--muted)"}}>AI Score</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"#8b5cf6"}}/>
+          <span style={{fontSize:10,color:"var(--muted)"}}>Compliance</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ImprovementPaths({tbl, tableData, paths}){
+  if(!paths || !tbl) return <div className="no-select">Select a table to see improvement roadmap</div>;
+  const p = paths[tbl];
+  if(!p) return <div className="no-select">No improvement data</div>;
+  const currentLayer = tableData?.layer || "source";
+  const layerIdx = LAYER_ORDER.indexOf(currentLayer);
+
+  const sections = [
+    {key:"bronze_to_silver", fromLabel:"Bronze", toLabel:"Silver", cls:"improve-bronze", fromCls:"layer-bronze", toCls:"layer-silver"},
+    {key:"silver_to_gold",   fromLabel:"Silver", toLabel:"Gold",   cls:"improve-silver", fromCls:"layer-silver", toCls:"layer-gold"},
+    {key:"gold_to_platinum", fromLabel:"Gold",   toLabel:"Platinum",cls:"improve-gold",   fromCls:"layer-gold",  toCls:"layer-platinum"},
+  ];
+
+  const layerToIdx = {source:0,bronze:1,silver:2,gold:3,platinum:4};
+
+  return (
+    <div>
+      <div className={`current-layer-banner layer-banner-${currentLayer}`}>
+        <div className="layer-banner-label">CURRENT LAYER</div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span className={`layer-badge ${layerClass(currentLayer)}`}>{LAYER_LABELS[currentLayer]||"Source"}</span>
+          <span style={{fontSize:11,color:"var(--text)"}}>
+            AI {tableData?.score||"—"} / Compliance {tableData?.compliance_score||"—"}
+          </span>
+        </div>
+      </div>
+      {sections.map(sec => {
+        const fromIdx = layerToIdx[sec.fromLabel.toLowerCase()];
+        const isDone = layerIdx > fromIdx;
+        const isCurrent = layerIdx === fromIdx;
+        const isNext = layerIdx === fromIdx - 1 || (layerIdx === 0 && fromIdx === 1);
+        return (
+          <div key={sec.key} className="improve-section" style={{opacity: isDone ? 0.45 : 1}}>
+            <div className={`improve-header ${sec.cls}`}>
+              <span className={`layer-badge ${sec.fromCls}`}>{sec.fromLabel}</span>
+              <span className="improve-arrow">→</span>
+              <span className={`layer-badge ${sec.toCls}`}>{sec.toLabel}</span>
+              {isDone && <span style={{marginLeft:"auto",fontSize:10,color:"var(--green)"}}>✓ Complete</span>}
+              {isCurrent && <span style={{marginLeft:"auto",fontSize:10,color:"var(--orange)"}}>◉ In Progress</span>}
+            </div>
+            {(p[sec.key]||[]).map((step,i) => (
+              <div key={i} className="improve-step">
+                <div className="improve-num">{i+1}</div>
+                <div className="improve-text">{step}</div>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DQPanel({tbl, dqResults}){
+  const rules = dqResults?.[tbl];
+  if(!rules) return <div className="no-select">Run pipeline to see DQ results</div>;
+  return (
+    <div>
+      {Object.entries(rules).map(([id,r]) => (
+        <div key={id} className="dq-rule">
+          <div className="dq-rule-header">
+            <span className="dq-rule-label">{r.label}</span>
+            <span className={`dq-status dq-${r.status.toLowerCase()}`}>{r.status}</span>
+          </div>
+          <div className="dq-desc">{r.description}</div>
+          <div className="dq-bar"><div className={`dq-bar-fill ${r.status.toLowerCase()}`} style={{width:`${r.pass_rate}%`}}/></div>
+          <div className="dq-stats">
+            <span>{r.pass_rate}% passing</span>
+            <span style={{color:"var(--red)"}}>{r.failed_rows?.toLocaleString()} failures</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LineagePanel({tbl, lineage}){
+  if(!lineage || Object.keys(lineage).length===0) return <div className="no-select">Run pipeline to see lineage</div>;
+  const entries = tbl ? (lineage[tbl] ? {[tbl]:lineage[tbl]} : {}) : lineage;
+  return (
+    <div>
+      {Object.entries(entries).map(([t,l]) => (
+        <div key={t} className="lineage-item">
+          <div className="lineage-label">{t}</div>
+          <div className="lineage-flow">
+            <span className="lineage-node ln-source">{l.source}</span>
+            <span className="lineage-arrow">→</span>
+            <span className="lineage-node ln-bronze">{l.bronze}</span>
+            <span className="lineage-arrow">→</span>
+            <span className="lineage-node ln-silver">{l.silver}</span>
+            <span className="lineage-arrow">→</span>
+            <span className="lineage-node ln-gold">{l.gold}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function CompliancePanel({pciIdentifiers, amlKycFields}){
+  return (
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:11,color:"var(--orange)",fontWeight:700,marginBottom:8,letterSpacing:1}}>PCI-DSS SENSITIVE DATA</div>
+        {(pciIdentifiers||[]).map(id=>(
+          <div key={id} className="comp-item">
+            <div className="comp-dot found"/>
+            <span className="comp-name comp-found">{id}</span>
+          </div>
+        ))}
+      </div>
+      <div>
+        <div style={{fontSize:11,color:"#7c3aed",fontWeight:700,marginBottom:8,letterSpacing:1,marginTop:12}}>AML / KYC FIELDS</div>
+        {(amlKycFields||[]).map(f=>(
+          <div key={f} className="comp-item">
+            <div className="comp-dot found" style={{background:"#7c3aed"}}/>
+            <span className="comp-name" style={{color:"#a78bfa"}}>{f}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [state,setState] = useState({
+    status:"idle", current_stage:0, stages_complete:[],
+    tables:{}, dq_results:{}, lineage:{}, compliance_summary:{},
+    logs:[], stage_names:[], table_order:[],
+    pci_identifiers:[], aml_kyc_fields:[], improvement_paths:{},
+  });
+  const [selectedTable,setSelectedTable] = useState(null);
+  const [rightTab,setRightTab] = useState("improve");
+  const ws = useRef(null);
+  const logRef = useRef(null);
+
+  const connect = useCallback(()=>{
+    const w = new WebSocket(`ws://${location.host}/ws`);
+    w.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      setState(prev => {
+        let next = {...prev};
+        if(msg.type==="full_state"||msg.type==="pipeline_reset"){
+          next = {...prev,...(msg.type==="pipeline_reset"?{status:"running",current_stage:0,stages_complete:[],tables:{},dq_results:{},lineage:{},compliance_summary:{},logs:[]}:{...msg})};
+        } else if(msg.type==="log"){
+          next.logs = [...prev.logs.slice(-199), msg];
+        } else if(msg.type==="stage_start"){
+          next.current_stage = msg.stage;
+        } else if(msg.type==="stage_complete"){
+          next.stages_complete = [...prev.stages_complete, msg.stage];
+        } else if(msg.type==="table_update"){
+          const {type,...rest} = msg;
+          next.tables = {...prev.tables, [msg.table]:{...prev.tables[msg.table],...rest}};
+        } else if(msg.type==="dq_result"){
+          next.dq_results = {...prev.dq_results, [msg.table]: msg.rules};
+        } else if(msg.type==="lineage_update"){
+          next.lineage = msg.lineage;
+        } else if(msg.type==="compliance_summary"){
+          const {type,...rest} = msg;
+          next.compliance_summary = rest;
+        } else if(msg.type==="pipeline_complete"){
+          next.status="complete"; next.duration=msg.duration;
+        }
+        return next;
+      });
+    };
+    w.onclose = ()=>setTimeout(connect, 2000);
+    ws.current = w;
+  },[]);
+
+  useEffect(()=>{ connect(); },[connect]);
+  useEffect(()=>{ if(logRef.current) logRef.current.scrollTop=logRef.current.scrollHeight; },[state.logs]);
+
+  const runPipeline = ()=> ws.current?.send(JSON.stringify({type:"run_pipeline"}));
+  const reset = ()=> ws.current?.send(JSON.stringify({type:"reset"}));
+
+  const {tables, dq_results, lineage, compliance_summary, stage_names, table_order,
+         pci_identifiers, aml_kyc_fields, improvement_paths} = state;
+  const selTbl = selectedTable && tables[selectedTable] ? tables[selectedTable] : null;
+
+  // Compute layer distribution for overview
+  const layerCounts = {source:0,bronze:0,silver:0,gold:0,platinum:0};
+  Object.values(tables).forEach(t=>{ if(t.layer) layerCounts[t.layer]=(layerCounts[t.layer]||0)+1; });
+  const avgAI = Object.values(tables).filter(t=>t.score).reduce((a,t,_,arr)=>a+t.score/arr.length,0)||0;
+  const avgComp = Object.values(tables).filter(t=>t.compliance_score).reduce((a,t,_,arr)=>a+t.compliance_score/arr.length,0)||0;
+
+  const stageNames = stage_names.length ? stage_names : ["Discovery","Assessment","Architecture","Extraction","Transform","Data Quality","Governance","AI Optimize","Monitoring"];
+  const tblOrder = table_order.length ? table_order : ["CUSTOMERS","ACCOUNTS","TRANSACTIONS","CARDS","LOANS","BENEFICIARIES","RISK_EVENTS","BRANCHES"];
+
+  const hasData = Object.keys(tables).length > 0;
+
+  return (
+    <div className="app">
+      {/* Header */}
+      <div className="header">
+        <span className="header-icon">🏦</span>
+        <span className="header-title">AI Ready Data</span>
+        <span className="header-sub">— Banking Data Pipeline</span>
+        <div className="header-badges">
+          <span className="badge badge-aml">BSA/AML</span>
+          <span className="badge badge-pci">PCI-DSS</span>
+          <span className="badge badge-kyc">KYC/CDD</span>
+          <span className="badge badge-kyc" style={{background:"#78350f22",color:"#fbbf24",borderColor:"#78350f55"}}>HMDA/CRA</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:16}}>
+          <div className={`status-dot ${state.status}`}/>
+          <span style={{fontSize:11,color:"var(--muted)",textTransform:"uppercase"}}>{state.status}</span>
+          {state.duration>0 && <span style={{fontSize:10,color:"var(--muted)"}}>{state.duration}s</span>}
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",gap:8}}>
+          {state.status!=="running" && (
+            <button className="run-btn" style={{padding:"6px 18px",fontSize:12}} onClick={runPipeline} disabled={state.status==="running"}>
+              {state.status==="running"?<><span className="spinner"/>Running…</>:"▶ Run Pipeline"}
+            </button>
+          )}
+          {hasData && state.status!=="running" && (
+            <button onClick={reset} style={{padding:"6px 14px",border:"1px solid var(--border)",background:"none",color:"var(--muted)",borderRadius:8,cursor:"pointer",fontSize:12}}>Reset</button>
+          )}
+        </div>
+      </div>
+
+      {/* Sidebar */}
+      <div className="sidebar">
+        <div className="sidebar-label">Pipeline Stages</div>
+        {stageNames.map((name,i)=>{
+          const isDone = state.stages_complete.includes(i);
+          const isActive = state.current_stage===i && state.status==="running";
+          return (
+            <div key={i} className={`stage-item ${isDone?"done":isActive?"active":"pending"}`}>
+              <div className={`stage-num ${isDone?"done":isActive?"active":"pending"}`}>
+                {isDone?"✓":i+1}
+              </div>
+              <span className="stage-name">{name}</span>
+            </div>
+          );
+        })}
+        {hasData && (
+          <>
+            <div className="sidebar-label" style={{marginTop:12}}>Layer Summary</div>
+            {Object.entries(layerCounts).filter(([,c])=>c>0).map(([l,c])=>(
+              <div key={l} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 16px"}}>
+                <span className={`layer-badge ${layerClass(l)}`} style={{fontSize:9}}>{LAYER_LABELS[l]}</span>
+                <span style={{fontSize:11,color:"var(--muted)"}}>{c} table{c!==1?"s":""}</span>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Main */}
+      <div className="main">
+        {!hasData ? (
+          <div className="welcome">
+            <h2>🏦 Banking Data Pipeline</h2>
+            <p>Simulate a 9-stage automated pipeline for banking data — customers, accounts, transactions, cards, loans, beneficiaries, and risk events. See AI readiness scores, regulatory compliance gaps, and step-by-step improvement paths to reach Platinum.</p>
+            <div className="stat-grid">
+              <div className="stat-box"><div className="stat-val">128K</div><div className="stat-lbl">Total Rows</div></div>
+              <div className="stat-box"><div className="stat-val">8</div><div className="stat-lbl">Tables</div></div>
+              <div className="stat-box"><div className="stat-val">6</div><div className="stat-lbl">Frameworks</div></div>
+            </div>
+            <button className="run-btn" onClick={runPipeline}>▶ Run Banking Pipeline</button>
+          </div>
+        ) : (
+          <>
+            {/* Score Overview */}
+            <div>
+              <div className="section-title">Pipeline Overview</div>
+              <div className="score-row">
+                <div className="score-card">
+                  <div className="score-card-val" style={{color:scoreColor(Math.round(avgAI))}}>{Math.round(avgAI)||"—"}</div>
+                  <div className="score-card-label">Avg AI Score</div>
+                </div>
+                <div className="score-card">
+                  <div className="score-card-val" style={{color:"#a78bfa"}}>{Math.round(avgComp)||"—"}</div>
+                  <div className="score-card-label">Avg Compliance</div>
+                </div>
+                <div className="score-card">
+                  <div className="score-card-val" style={{color:"var(--gold-layer)"}}>{layerCounts.gold+layerCounts.platinum}</div>
+                  <div className="score-card-label">Gold+ Tables</div>
+                </div>
+                <div className="score-card">
+                  <div className="score-card-val" style={{color:"var(--red)"}}>{Object.values(dq_results).flatMap(r=>Object.values(r)).filter(r=>r.status==="FAIL").length}</div>
+                  <div className="score-card-label">DQ Failures</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Table Grid */}
+            <div>
+              <div className="section-title">Banking Tables — Click to inspect improvement paths</div>
+              <div className="table-grid">
+                {tblOrder.map(tbl => {
+                  const t = tables[tbl]||{};
+                  return (
+                    <div key={tbl} className={`tbl-card ${selectedTable===tbl?"selected":""}`} onClick={()=>setSelectedTable(tbl)}>
+                      <div className="tbl-header">
+                        <div>
+                          <div className="tbl-name">{tbl}</div>
+                          <div className="tbl-domain">{t.domain||""}</div>
+                          <div className="tbl-reg">{t.regulatory||""}</div>
+                        </div>
+                        <span className={`layer-badge ${layerClass(t.layer)}`}>{LAYER_LABELS[t.layer]||"Source"}</span>
+                      </div>
+                      <div className="score-bars">
+                        <div className="score-bar-row">
+                          <span className="score-bar-label">AI Readiness</span>
+                          <div className="score-bar-track"><div className="score-bar-fill score-ai" style={{width:`${t.score||0}%`}}/></div>
+                          <span className="score-bar-val" style={{color:scoreColor(t.score)}}>{t.score||"—"}</span>
+                        </div>
+                        <div className="score-bar-row">
+                          <span className="score-bar-label">Compliance</span>
+                          <div className="score-bar-track"><div className="score-bar-fill score-comp" style={{width:`${t.compliance_score||0}%`}}/></div>
+                          <span className="score-bar-val" style={{color:"#a78bfa"}}>{t.compliance_score||"—"}</span>
+                        </div>
+                      </div>
+                      <div className="tbl-rows">
+                        {t.rows_processed?.toLocaleString()||"0"} rows
+                        {t.rows_quarantined>0 && <span style={{color:"var(--orange)"}}> · {t.rows_quarantined?.toLocaleString()} quarantined</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Right Panel */}
+      <div className="right-panel">
+        <div className="panel-tabs">
+          <div className={`panel-tab ${rightTab==="improve"?"active":""}`} onClick={()=>setRightTab("improve")}>Roadmap</div>
+          <div className={`panel-tab ${rightTab==="gauge"?"active":""}`} onClick={()=>setRightTab("gauge")}>Scores</div>
+          <div className={`panel-tab ${rightTab==="dq"?"active":""}`} onClick={()=>setRightTab("dq")}>DQ Rules</div>
+          <div className={`panel-tab ${rightTab==="lineage"?"active":""}`} onClick={()=>setRightTab("lineage")}>Lineage</div>
+          <div className={`panel-tab ${rightTab==="comp"?"active":""}`} onClick={()=>setRightTab("comp")}>Reg</div>
+        </div>
+        <div className="panel-body">
+          {rightTab==="improve" && (
+            <div>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:12}}>
+                {selectedTable
+                  ? `Improvement Roadmap — ${selectedTable}`
+                  : "Select a table from the grid to see its improvement roadmap"}
+              </div>
+              <ImprovementPaths
+                tbl={selectedTable}
+                tableData={selTbl}
+                paths={improvement_paths}
+              />
+            </div>
+          )}
+          {rightTab==="gauge" && (
+            <div>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:8,textAlign:"center"}}>
+                {selectedTable||"Select a table"}
+              </div>
+              <Gauge aiScore={selTbl?.score} compScore={selTbl?.compliance_score}/>
+              {selTbl && (
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:10,color:"var(--muted)",marginBottom:8}}>SCORE FACTORS</div>
+                  {Object.entries(selTbl.score_factors||{}).map(([k,v])=>(
+                    <div key={k} className="score-bar-row" style={{marginBottom:8}}>
+                      <span className="score-bar-label" style={{fontSize:10,width:110}}>{k.replace(/_/g," ")}</span>
+                      <div className="score-bar-track"><div className="score-bar-fill score-ai" style={{width:`${v}%`}}/></div>
+                      <span className="score-bar-val" style={{fontSize:10,color:"var(--blue)"}}>{v}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {rightTab==="dq" && (
+            <div>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>
+                {selectedTable ? `DQ Rules — ${selectedTable}` : "Select a table"}
+              </div>
+              <DQPanel tbl={selectedTable} dqResults={dq_results}/>
+            </div>
+          )}
+          {rightTab==="lineage" && (
+            <div>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>Data Lineage</div>
+              <LineagePanel tbl={selectedTable} lineage={lineage}/>
+            </div>
+          )}
+          {rightTab==="comp" && (
+            <div>
+              <div style={{fontSize:11,color:"var(--muted)",marginBottom:8}}>Regulatory Data Inventory</div>
+              <CompliancePanel pciIdentifiers={pci_identifiers} amlKycFields={aml_kyc_fields}/>
+            </div>
+          )}
+        </div>
+
+        {/* Log Feed */}
+        <div className="log-feed" ref={logRef}>
+          {state.logs.length===0 && <div style={{color:"var(--muted)"}}>Logs will appear here when pipeline runs...</div>}
+          {state.logs.map((l,i)=>(
+            <div key={i} className={`log-entry log-${l.level||"INFO"}`}>
+              <span style={{color:"var(--muted)",marginRight:8}}>{String(i).padStart(4,"0")}</span>
+              {l.message}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

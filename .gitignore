@@ -1,5 +1,5 @@
-oracle_sim.db
+*.db
+*.db-journal
 __pycache__/
 *.pyc
-healthcare/backend/*.db
-healthcare/backend/*.db-journal
+.claude/
