@@ -539,7 +539,8 @@ function App() {
   const running = status === "running";
 
   const connect = useCallback(() => {
-    const url = `ws://${window.location.host}/ws`;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const url = `${protocol}//${window.location.host}/ws`;
     ws.current = new WebSocket(url);
 
     ws.current.onmessage = (evt) => {
